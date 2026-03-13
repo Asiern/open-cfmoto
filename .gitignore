@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.expo/
+*.tsbuildinfo
+
+# Native
+android/
+ios/
+
+# APK analysis (sensitive / large binary)
+tools/apk-analysis/apk/
+tools/apk-analysis/jadx-output/
+tools/apk-analysis/snoop-logs/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# EAS
+eas-build-pre-install.sh
+
+# Turbo
+.turbo/
