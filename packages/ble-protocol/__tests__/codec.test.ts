@@ -1,115 +1,130 @@
-import { decodePacket, encodeCommand, CodecError, START_BYTE, MSG_TELEMETRY } from '../src/codec';
+import { buildFrame, parseFrame, calcCRC, CodecError, FRAME_HEADER_0, FRAME_HEADER_1, FRAME_END } from '../src/codec';
 
-/** Build a valid telemetry packet for testing */
-function buildTelemetryPacket(overrides: Partial<{
-  rpm: number;
-  speedX10: number;
-  gear: number;
-  coolantRaw: number;
-  batteryMv: number;
-  throttle: number;
-  odometer: number;
-  fuel: number;
-  faults: number;
-}> = {}): Uint8Array {
-  const {
-    rpm = 3000,
-    speedX10 = 600, // 60.0 km/h
-    gear = 3,
-    coolantRaw = 125, // 85°C
-    batteryMv = 12400,
-    throttle = 30,
-    odometer = 1234,
-    fuel = 75,
-    faults = 0,
-  } = overrides;
-
-  const payload = new Uint8Array(14);
-  payload[0] = (rpm >> 8) & 0xff;
-  payload[1] = rpm & 0xff;
-  payload[2] = (speedX10 >> 8) & 0xff;
-  payload[3] = speedX10 & 0xff;
-  payload[4] = gear;
-  payload[5] = coolantRaw;
-  payload[6] = (batteryMv >> 8) & 0xff;
-  payload[7] = batteryMv & 0xff;
-  payload[8] = throttle;
-  payload[9] = (odometer >> 16) & 0xff;
-  payload[10] = (odometer >> 8) & 0xff;
-  payload[11] = odometer & 0xff;
-  payload[12] = fuel;
-  payload[13] = faults;
-
-  // Build full packet: [0xAA, msgType, len, ...payload, checksum]
-  const packet = new Uint8Array(3 + payload.length + 1);
-  packet[0] = START_BYTE;
-  packet[1] = MSG_TELEMETRY;
-  packet[2] = payload.length;
-  packet.set(payload, 3);
-  // XOR checksum of bytes 1..end-1
-  let cs = 0;
-  for (let i = 1; i < packet.length - 1; i++) cs ^= packet[i]!;
-  packet[packet.length - 1] = cs;
-  return packet;
-}
-
-describe('decodePacket', () => {
-  test('decodes a valid telemetry packet', () => {
-    const packet = buildTelemetryPacket();
-    const data = decodePacket(packet);
-
-    expect(data.rpm).toBe(3000);
-    expect(data.speedKmh).toBe(60.0);
-    expect(data.gear).toBe(3);
-    expect(data.coolantTempC).toBe(85); // 125 - 40
-    expect(data.batteryVoltage).toBeCloseTo(12.4);
-    expect(data.throttlePercent).toBe(30);
-    expect(data.odometerKm).toBe(1234);
-    expect(data.fuelPercent).toBe(75);
-    expect(data.faultCount).toBe(0);
+describe('calcCRC', () => {
+  test('sums bytes mod 256', () => {
+    // bytes: [0x67, 0x00, 0x00] → sum = 0x67 = 103
+    expect(calcCRC(new Uint8Array([0x67, 0x00, 0x00]))).toBe(0x67);
   });
 
-  test('decodes fuel=0xFF as null', () => {
-    const packet = buildTelemetryPacket({ fuel: 0xff });
-    const data = decodePacket(packet);
-    expect(data.fuelPercent).toBeNull();
+  test('wraps at 256', () => {
+    // 0xFF + 0x01 = 0x100 → mod 256 = 0x00
+    expect(calcCRC(new Uint8Array([0xff, 0x01]))).toBe(0x00);
   });
 
-  test('throws CodecError on bad start byte', () => {
-    const packet = buildTelemetryPacket();
-    packet[0] = 0xbb;
-    expect(() => decodePacket(packet)).toThrow(CodecError);
-  });
-
-  test('throws CodecError on checksum mismatch', () => {
-    const packet = buildTelemetryPacket();
-    packet[packet.length - 1] ^= 0xff; // corrupt checksum
-    expect(() => decodePacket(packet)).toThrow(CodecError);
-  });
-
-  test('throws CodecError on packet too short', () => {
-    expect(() => decodePacket(new Uint8Array([0xaa, 0x01]))).toThrow(CodecError);
+  test('empty input returns 0', () => {
+    expect(calcCRC(new Uint8Array([]))).toBe(0);
   });
 });
 
-describe('encodeCommand', () => {
-  test('encodes command with correct structure', () => {
-    const payload = new Uint8Array([0x01, 0x02]);
-    const packet = encodeCommand(0x10, payload);
-
-    expect(packet[0]).toBe(START_BYTE);
-    expect(packet[1]).toBe(0x10);
-    expect(packet[2]).toBe(2); // payload length
-    expect(packet[3]).toBe(0x01);
-    expect(packet[4]).toBe(0x02);
-    // verify checksum
-    let cs = 0;
-    for (let i = 1; i < packet.length - 1; i++) cs ^= packet[i]!;
-    expect(packet[packet.length - 1]).toBe(cs);
+describe('buildFrame', () => {
+  test('produces correct header bytes', () => {
+    const frame = buildFrame(0x67, new Uint8Array([]));
+    expect(frame[0]).toBe(0xab);
+    expect(frame[1]).toBe(0xcd);
   });
 
-  test('encodes empty payload', () => {
-    const packet = encodeCommand(0x20, new Uint8Array(0));
-    expect(packet.length).toBe(4); // header(3) + checksum(1)
+  test('control code is at byte[2]', () => {
+    const frame = buildFrame(0x5a, new Uint8Array([0x01, 0x02]));
+    expect(frame[2]).toBe(0x5a);
   });
+
+  test('length is little-endian at bytes[3..4]', () => {
+    const payload = new Uint8Array(300); // 0x012C
+    const frame = buildFrame(0x01, payload);
+    expect(frame[3]).toBe(0x2c); // lenLo
+    expect(frame[4]).toBe(0x01); // lenHi
+  });
+
+  test('payload is at bytes[5..5+N-1]', () => {
+    const payload = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
+    const frame = buildFrame(0x6a, payload);
+    expect(Array.from(frame.slice(5, 9))).toEqual([0xde, 0xad, 0xbe, 0xef]);
+  });
+
+  test('last byte is 0xCF', () => {
+    const frame = buildFrame(0x67, new Uint8Array([0x01]));
+    expect(frame[frame.length - 1]).toBe(0xcf);
+  });
+
+  test('total length is 7 + payloadLength', () => {
+    // header(2) + control(1) + len(2) + payload(N) + crc(1) + end(1) = 7 + N
+    const frame = buildFrame(0x67, new Uint8Array(5));
+    expect(frame.length).toBe(12);
+  });
+
+  test('CRC byte is correct', () => {
+    const payload = new Uint8Array([0x08, 0x01]); // Heartbeat{ping:1} proto encoding
+    const frame = buildFrame(0x67, payload);
+    // CRC covers bytes[2..end-2]: [controlCode, lenLo, lenHi, ...payload]
+    const crcInput = frame.slice(2, frame.length - 2);
+    const expectedCrc = crcInput.reduce((acc: number, b: number) => (acc + b) & 0xff, 0);
+    expect(frame[frame.length - 2]).toBe(expectedCrc);
+  });
+});
+
+describe('parseFrame', () => {
+  test('roundtrip: parseFrame(buildFrame(code, payload))', () => {
+    const payload = new Uint8Array([0x08, 0x01]);
+    const frame = buildFrame(0x67, payload);
+    const result = parseFrame(frame);
+    expect(result.valid).toBe(true);
+    expect(result.controlCode).toBe(0x67);
+    expect(Array.from(result.payload)).toEqual(Array.from(payload));
+  });
+
+  test('returns valid=false for wrong header byte[0]', () => {
+    const frame = buildFrame(0x67, new Uint8Array([0x01]));
+    frame[0] = 0xaa; // corrupt header
+    const result = parseFrame(frame);
+    expect(result.valid).toBe(false);
+  });
+
+  test('returns valid=false for wrong header byte[1]', () => {
+    const frame = buildFrame(0x67, new Uint8Array([0x01]));
+    frame[1] = 0x00;
+    const result = parseFrame(frame);
+    expect(result.valid).toBe(false);
+  });
+
+  test('returns valid=false for wrong end byte (0xCF)', () => {
+    const frame = buildFrame(0x67, new Uint8Array([0x01]));
+    frame[frame.length - 1] = 0x00;
+    const result = parseFrame(frame);
+    expect(result.valid).toBe(false);
+  });
+
+  test('returns valid=false for corrupted CRC', () => {
+    const frame = buildFrame(0x67, new Uint8Array([0x01]));
+    frame[frame.length - 2] ^= 0xff; // flip all bits in CRC byte
+    const result = parseFrame(frame);
+    expect(result.valid).toBe(false);
+  });
+
+  test('returns valid=false for frame too short', () => {
+    const result = parseFrame(new Uint8Array([0xab, 0xcd, 0x67]));
+    expect(result.valid).toBe(false);
+  });
+
+  test('handles zero-length payload', () => {
+    const frame = buildFrame(0x6c, new Uint8Array([]));
+    const result = parseFrame(frame);
+    expect(result.valid).toBe(true);
+    expect(result.payload.length).toBe(0);
+  });
+});
+
+// Keep CodecError exported for consumers that need to catch codec failures
+describe('CodecError', () => {
+  test('is an Error subclass', () => {
+    const err = new CodecError('test');
+    expect(err).toBeInstanceOf(Error);
+    expect(err.name).toBe('CodecError');
+  });
+});
+
+// Verify exported constants
+describe('frame constants', () => {
+  test('FRAME_HEADER_0 is 0xAB', () => expect(FRAME_HEADER_0).toBe(0xab));
+  test('FRAME_HEADER_1 is 0xCD', () => expect(FRAME_HEADER_1).toBe(0xcd));
+  test('FRAME_END is 0xCF', () => expect(FRAME_END).toBe(0xcf));
 });

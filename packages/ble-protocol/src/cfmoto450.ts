@@ -5,10 +5,6 @@
 
 import { IBikeProtocol, BleTransport, BikeData } from './types';
 import { SERVICE_MAIN, CHAR_NOTIFY, CHAR_WRITE } from './uuids';
-import { decodePacket, encodeCommand } from './codec';
-
-const CMD_HANDSHAKE = 0x10; // UNCONFIRMED
-const CMD_REQUEST_TELEMETRY = 0x20; // UNCONFIRMED — may be push-based
 
 export class CFMoto450Protocol implements IBikeProtocol {
   private listeners: Array<(data: BikeData) => void> = [];
@@ -55,20 +51,12 @@ export class CFMoto450Protocol implements IBikeProtocol {
     );
   }
 
-  private handleNotification(data: Uint8Array): void {
-    try {
-      const bikeData = decodePacket(data);
-      this.listeners.forEach((l) => l(bikeData));
-    } catch {
-      // Malformed packet — ignore, log in debug builds
-    }
+  private handleNotification(_data: Uint8Array): void {
+    // TODO(block2): wire to ResponseRouter + proto decode
   }
 
-  private async sendHandshake(): Promise<void> {
-    const payload = new Uint8Array([0x01]); // UNCONFIRMED
-    const packet = encodeCommand(CMD_HANDSHAKE, payload);
-    await this.sendCommand(packet);
-  }
+  // TODO(block2): replace with AuthFlow + KeepAliveManager
+  private async sendHandshake(): Promise<void> {}
 
   private cleanup(): void {
     this.unsubscribeNotify?.();
