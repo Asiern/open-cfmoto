@@ -7,7 +7,8 @@ export type ConnectionState =
   | 'disconnected'
   | 'scanning'
   | 'connecting'
-  | 'connected'
+  | 'connected'       // notify registered, MTU set, auth pending
+  | 'authenticated'   // auth complete, keep-alive running
   | 'error';
 
 /** Live telemetry snapshot from bike */
@@ -62,6 +63,13 @@ export interface BleTransport {
     data: Uint8Array,
     withResponse: boolean,
   ): Promise<void>;
+
+  /**
+   * Request a specific ATT MTU from the peripheral.
+   * The peripheral may negotiate a lower value.
+   * @returns the negotiated MTU actually granted
+   */
+  requestMtu(peripheralId: string, mtu: number): Promise<number>;
 
   /**
    * Subscribe to notifications from a characteristic.

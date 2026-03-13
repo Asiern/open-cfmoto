@@ -31,6 +31,9 @@ export class MockBleTransport implements BleTransport {
   async connect() {}
   async disconnect() {}
   async write() {}
+  async requestMtu(_peripheralId: string, mtu: number): Promise<number> {
+    return mtu; // mock: grant requested MTU
+  }
   async subscribe(
     _peripheralId: string,
     _serviceUUID: string,

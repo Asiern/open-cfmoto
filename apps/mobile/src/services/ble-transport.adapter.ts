@@ -72,6 +72,13 @@ export class RNBleTransport implements BleTransport {
     }
   }
 
+  async requestMtu(peripheralId: string, mtu: number): Promise<number> {
+    const device = this.connectedDevices.get(peripheralId);
+    if (!device) throw new Error(`Not connected to ${peripheralId}`);
+    const updated = await device.requestMTU(mtu);
+    return updated.mtu ?? mtu;
+  }
+
   async subscribe(
     peripheralId: string,
     serviceUUID: string,

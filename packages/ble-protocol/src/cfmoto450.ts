@@ -25,7 +25,10 @@ export class CFMoto450Protocol implements IBikeProtocol {
       (data) => this.handleNotification(data),
     );
 
-    // Send handshake to start telemetry stream
+    // Negotiate MTU before any commands — confirmed 185 bytes (BleModel.java)
+    await transport.requestMtu(peripheralId, 185);
+
+    // TODO(block2): auth flow goes here (AuthFlow.step1)
     await this.sendHandshake();
 
     return () => this.cleanup();
