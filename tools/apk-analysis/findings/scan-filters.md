@@ -1,22 +1,65 @@
-# BLE Scan Filters — CFMoto 450 Series
+# BLE Scan Filters — CFMoto App
 
-**Status: UNCONFIRMED — to be populated from jadx/btsnoop analysis.**
+**Status: CONFIRMED from jadx decompilation.**
 
-## Device Name Pattern
+---
 
-The OEM app likely scans for devices with name prefix `CFMOTO` or similar.
-Verify with: `grep -r "startScan\|ScanFilter\|CFMOTO" tools/apk-analysis/jadx-output/ --include="*.java"`
+## TBox Path (BleModel — 450-series motorcycles)
 
-## Advertisement Data
+- Scans **by MAC address** only (stored from server after vehicle binding).
+- `ScanFilter.Builder().setDeviceAddress(mac)`
+- **Scan settings**: `ScanMode.LOW_LATENCY` (mode 2), `reportDelay = 0`, `useHardwareBatchingIfSupported = true`, `legacy = false`
+- Scan scan initiated by `scannerAndConnect()`; stopped on first match.
+- **No name-based filtering** for the 450-series.
 
-| Field | Expected Value | Confidence |
-|-------|---------------|-----------|
-| Local Name | `CFMOTO_450*` | LOW |
-| Service UUID | `0000fff0-...` or NUS | LOW |
-| Manufacturer Specific | Unknown | UNKNOWN |
+Source: `BleModel.java`
 
-## Next Steps
-1. Decompile APK with jadx
-2. Search for `ScanFilter`, `startScan`, device name patterns
-3. Run btsnoop during app startup while powering bike on
-4. Document advertisement payload bytes here
+---
+
+## Youth Path (BleModelYouth — child bikes)
+
+Two sub-cases depending on device:
+
+### By MAC address (default)
+- `BluetoothAdapter.checkBluetoothAddress(name)` → `ScanFilter.setDeviceAddress(mac)`
+
+### By device name (if input is not a valid MAC)
+- `ScanFilter.Builder().setDeviceName(name)`
+
+### After scan result:
+- If device name starts with `"9RH0N"` (CF110-AY10), `"EC30E"` (CF1000DY), or `"ED20E"` (CF650DY):
+  - Read `ManufacturerSpecificData(53199)` from scan record
+  - Bytes [0..5] = MAC address, bytes [6..12] = 7-char password
+  - Use scan record bytes for auth during GATT connect
+- Otherwise: plain GATT connect without scan record
+
+**Scan timeout**: 15 000 ms (`SCAN_TIMEOUT` handler message 1).
+
+Source: `BleModelYouth.java`, `CarFilter.java`, `Cf110Utils.java`
+
+---
+
+## Navigation/HUD Path (BleNaviModule)
+
+- Scans by device name using `BleScanRuleConfig` (FastBLE API)
+- No specific name pattern visible in public constants; set at runtime.
+
+---
+
+## Manufacturer ID
+
+| ID (decimal) | ID (hex) | Used by |
+|---|---|---|
+| 53199 | `0xCFCF` | CF110-type devices (scan record contains MAC + password) |
+
+---
+
+## Device Name Patterns
+
+| Prefix | Model | Protocol |
+|--------|-------|----------|
+| `9RH0N` | CF110-AY10 | CF110 GATT auth |
+| `EC30E` | CF1000DY | CF110 GATT auth |
+| `ED20E` | CF650DY | CF110 GATT auth |
+| (any other) | Unknown youth | HH40 SPP protocol |
+| (MAC only, 450-series) | CFMoto 450 MT/SR/NK | TBox protocol |

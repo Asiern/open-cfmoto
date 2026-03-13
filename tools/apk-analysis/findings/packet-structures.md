@@ -1,36 +1,73 @@
-# Packet Structures — CFMoto 450 Series
+# Packet Structures — CFMoto App
 
-**Status: UNCONFIRMED — inferred structure only. Verify via btsnoop analysis.**
+**Status: CONFIRMED from jadx decompilation. See `ble-protocol.md` for full detail.**
 
-## Hypothetical Telemetry Frame (bike → app, NOTIFY)
+---
+
+## TBox Frame (450-series motorcycles)
 
 ```
-Offset  Len  Type      Description
-------  ---  --------  -----------
-0       1    uint8     Start byte (0xAA?)
-1       1    uint8     Message type (0x01 = telemetry?)
-2       1    uint8     Payload length
-3       2    uint16 BE RPM
-5       2    uint16 BE Speed × 10 (km/h)
-7       1    uint8     Gear (0=N, 1-6)
-8       1    uint8     Coolant temp raw (−40 offset → °C)
-9       2    uint16 BE Battery mV
-11      1    uint8     Throttle % (0–100)
-12      3    uint24 BE Odometer km
-15      1    uint8     Fuel % (0xFF = N/A)
-16      1    uint8     Fault count
-17      1    uint8     XOR checksum (bytes 1..16)
+Byte 0:      0xAB  (header, -85 signed)
+Byte 1:      0xCD  (header, -51 signed)
+Byte 2:      control code (command byte)
+Byte 3:      data length low byte  (little-endian)
+Byte 4:      data length high byte (little-endian)
+Bytes 5..N+4: Protobuf payload (N bytes)
+Byte N+5:    CRC  = sum(bytes[2..N+4]) & 0xFF
+Byte N+6:    0xCF (end, -49 signed)
 ```
 
-## Notes
-- Checksum algorithm: XOR of all bytes between start byte and checksum
-- Multi-byte integers: big-endian assumed (verify)
-- Battery: raw mV ÷ 1000 = volts
-- Coolant: raw − 40 = °C (common CAN/OBD pattern)
+**Total length**: N + 7 bytes.
 
-## TODO
-- [ ] Confirm start byte (0xAA or other?)
-- [ ] Confirm message type encoding
-- [ ] Confirm checksum algorithm (XOR vs CRC8 vs CRC16)
-- [ ] Verify byte order (BE vs LE)
-- [ ] Find fault code frame structure
+**CRC**: byte-addition sum (NOT XOR) of control code + both length bytes + all payload bytes, truncated to 8 bits.
+
+**Payload encoding**: Protocol Buffers (google.protobuf), message type determined by control code.
+
+Source: `TboxMessageFrame.java`, `TBoxCrcFrame.java`, `TboxFrameDecoder.java`
+
+---
+
+## CFBleMsg / HH40 Frame (child bikes)
+
+Identical wire format to TBox frame. Same header (0xAB 0xCD), same CRC algorithm, same end byte (0xCF).
+
+Source: `CFBleMsg.java`, `HH40Utils.java`
+
+---
+
+## Navigation Frame (HUD display)
+
+Same outer structure as TBox but includes a **sequence byte** between the length field and payload:
+
+```
+Byte 0:      0xAB
+Byte 1:      0xCD
+Byte 2:      control code (NaviCode byte: 120–126)
+Byte 3:      data length low byte
+Byte 4:      data length high byte
+Byte 5:      sequence byte  (single=0xC0, start=0x80, middle=0x00, end=0x40|seqNum)
+Bytes 6..N+5: payload (N bytes)
+Byte N+6:    CRC  = sum(bytes[2..N+5]) & 0xFF  (includes seq byte)
+Byte N+7:    0xCF
+```
+
+Max single-frame payload: 12 bytes. Longer payloads (road names) are fragmented.
+
+Source: `MessageFrame.java`, `CrcFrame.java`, `SeqFrame.java`
+
+---
+
+## Frame Parsing (Decoder)
+
+Validation order in `TboxFrameDecoder.decode()`:
+1. `bArr[0] == 0xAB` and `bArr[1] == 0xCD`
+2. Length = `(bArr[3] & 0xFF) | (bArr[4] << 8)`
+3. Verify CRC: recalculate and compare to `bArr[length + 5]`
+4. Verify end byte: `bArr[length + 6] == 0xCF`
+   _(Note: decoder uses `bArr[bArr.length - 1] == 0xCF` check)_
+5. Parse Protobuf payload from `bArr[5 .. length+4]`
+
+HH40 reassembly (`HH40Utils.receiver()`):
+- Accumulates bytes byte-by-byte
+- Syncs on 0xAB → 0xCD sequence
+- Waits until `bufferSize == (length + 5)` and last byte is 0xCF

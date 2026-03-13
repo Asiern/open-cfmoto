@@ -1,26 +1,48 @@
-# GATT Services — CFMoto 450 Series
+# GATT Services — CFMoto App
 
-**Status: UNCONFIRMED — scaffold UUIDs only. Update from jadx/btsnoop analysis.**
+**Status: CONFIRMED from jadx decompilation. All values extracted directly from source.**
 
-## Known / Suspected Services
+See `ble-protocol.md` for full details. This file is a quick-reference summary.
 
-| UUID | Name | Confidence | Source |
-|------|------|-----------|--------|
-| `0000fff0-0000-1000-8000-00805f9b34fb` | Main telemetry service | LOW | Common Chinese OEM pattern |
-| `6e400001-b5a3-f393-e0a9-e50e24dcca9e` | Nordic UART Service (NUS) | LOW | Common BLE stack default |
+---
 
-## Characteristics
+## Primary TBox Service (450-series motorcycles)
 
-| Service UUID | Char UUID | Properties | Description | Confidence |
-|---|---|---|---|---|
-| fff0 | `0000fff1-...` | NOTIFY | Bike → App telemetry | LOW |
-| fff0 | `0000fff2-...` | WRITE | App → Bike commands | LOW |
-| NUS | `6e400002-...` | WRITE NO RESPONSE | NUS RX | LOW |
-| NUS | `6e400003-...` | NOTIFY | NUS TX | LOW |
+| Role | UUID |
+|------|------|
+| Service | `0000B354-D6D8-C7EC-BDF0-EAB1BFC6BCBC` |
+| Write Characteristic | `0000B356-D6D8-C7EC-BDF0-EAB1BFC6BCBC` |
+| Notify Characteristic | `0000B357-D6D8-C7EC-BDF0-EAB1BFC6BCBC` |
 
-## Next Steps
+Source: `BleConstant.java` (SERVICE_UUID, CHARACTERISTIC_UUID_WRITE, CHARACTERISTIC_UUID_NOTIFY)
 
-1. Run `tools/apk-analysis/scripts/extract-uuids.sh` after jadx decompile
-2. Capture btsnoop_hci.log during bike connection session
-3. Update this file with confirmed UUIDs
-4. Update `packages/ble-protocol/src/uuids.ts`
+## Navigation/HUD Service
+
+| Role | UUID |
+|------|------|
+| Service | `0000B360-D6D8-C7EC-BDF0-EAB1BFC6BCBC` |
+| Characteristic | `0000B362-D6D8-C7EC-BDF0-EAB1BFC6BCBC` |
+
+Source: `BleNaviModule.java`, `Cf110Utils.SERVICE_Cmd_UUID`
+
+## CF110 Child Bike Services
+
+| Role | UUID |
+|------|------|
+| Auth Service | `0000b358-d6d8-c7ec-bdf0-eab1bfc6bcbc` |
+| Auth Characteristic | `0000b360-d6d8-c7ec-bdf0-eab1bfc6bcbc` |
+| Cmd Service | `0000B362-D6D8-C7EC-BDF0-EAB1BFC6BCBC` |
+| Cmd Characteristic | `0000B364-D6D8-C7EC-BDF0-EAB1BFC6BCBC` |
+
+Source: `Cf110Utils.java`
+
+## HH40 Child Bike Services
+
+| Role | UUID |
+|------|------|
+| SPP Service | `0783b03e-8535-b5a0-7140-a304d2495cb7` |
+| Notify Characteristic | `0783b03e-8535-b5a0-7140-a304d2495cb8` |
+| Write Characteristic | `0783b03e-8535-b5a0-7140-a304d2495cba` |
+| AT Characteristic | `0000fff6-0000-1000-8000-00805f9b34fb` |
+
+Source: `HH40Utils.java`

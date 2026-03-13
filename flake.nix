@@ -17,15 +17,18 @@
         ]);
 
         # Android SDK — matches React Native 0.76 requirements
-        # compileSdk/targetSdk 34, NDK 26.1.10909125, build-tools 34.0.0
+        # compileSdk/targetSdk 34, NDK 27.1.12297006, build-tools 35.0.0
         androidSdk = (pkgs.androidenv.composeAndroidPackages {
-          buildToolsVersions = [ "34.0.0" ];
-          platformVersions   = [ "34" ];
-          abiVersions        = [ "arm64-v8a" "x86_64" ];
+          buildToolsVersions = [ "34.0.0" "35.0.0" "36.0.0" ];
+          platformVersions   = [ "34" "35" "36" ];
+          abiVersions        = [ "x86_64" ];      # x86_64 only — emulator + build
           includeNDK         = true;
-          ndkVersions        = [ "26.1.10909125" ];
+          ndkVersions        = [ "27.1.12297006" ];
           includeCmake       = true;
           cmakeVersions      = [ "3.22.1" ];
+          includeEmulator    = true;
+          includeSystemImages = true;
+          systemImageTypes   = [ "google_apis_playstore" ];
           extraLicenses      = [
             "android-googletv-license"
             "android-sdk-arm-dbt-license"
@@ -70,6 +73,9 @@
           shellHook = ''
             export ANDROID_HOME="${androidSdk}/libexec/android-sdk"
             export ANDROID_SDK_ROOT="$ANDROID_HOME"
+            # nixpkgs places the NDK at ndk-bundle, not ndk/VERSION
+            export ANDROID_NDK_HOME="$ANDROID_HOME/ndk-bundle"
+            export ANDROID_NDK_ROOT="$ANDROID_NDK_HOME"
             export JAVA_HOME="${pkgs.jdk17}"
 
             echo "open-cfmoto dev shell"
