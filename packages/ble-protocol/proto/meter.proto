@@ -1,0 +1,168 @@
+syntax = "proto3";
+
+option java_package = "com.cfmoto.proto";
+option java_outer_classname = "Meter";
+
+// Auth step 1 — App→Bike (control 0x5A)
+message AuthPackage {
+  bytes info = 1;
+}
+
+// Auth step 2 — Bike→App (control 0x5B): bike random challenge
+message TboxRandomNum {
+  bytes codec = 1;
+}
+
+// Auth step 3 — App→Bike (control 0x5C): decrypted challenge response
+message RandomNum {
+  string sn = 1;
+}
+
+// Auth result — Bike→App (control 0x5D): 0 = success
+message TboxAuthResult {
+  int32 result = 1;
+}
+
+// Keep-alive ping — App→Bike (control 0x67, ping=1)
+message Heartbeat {
+  int32 ping = 1;
+}
+
+// Lock/unlock/power — App→Bike (control 0x67)
+message Lock {
+  enum Type {
+    UNUSE1 = 0;
+    MOTORCYCLE = 1;
+    SADDLE = 2;
+    MAIN_STAND = 3;
+    STORAGE_BOX = 4;
+    SIDE_BOX = 5;
+    TAIL_BOX = 6;
+    POWER_ON_OFF = 7;
+  }
+  enum State {
+    UNUSE2 = 0;
+    UNLOCKED = 1;
+    LOCKED = 2;
+    POWER_ON = 3;
+    POWER_OFF = 4;
+  }
+  Type type = 1;
+  State state = 2;
+}
+
+// Find car (flash/horn/headlight) — App→Bike (control 0x6A)
+message FindCar {
+  bool headlightStatus = 1;
+  bool doubleflashStatus = 2;
+  bool loudspeakerStatus = 3;
+}
+
+// Turn signal control — App→Bike (control 0x6B)
+message LightControl {
+  enum Type {
+    NONE2 = 0;
+    RIGHT_OPEN = 1;
+    RIGHT_CLOSE = 2;
+    LEFT_OPEN = 3;
+    LEFT_CLOSE = 4;
+  }
+  Type type = 1;
+}
+
+// Ignition — App→Bike (control 0x79)
+message KL15 {
+  int32 kL15 = 1;
+}
+
+// 4G module command — App→Bike (control 0x0A)
+message Operate4g {
+  int32 command = 1;
+  int32 body = 2;
+  int32 msgId = 3;
+}
+
+// 4G module complex command — App→Bike (control 0x0C)
+message Operate4gComplex {
+  int32 command = 1;
+  string body = 2;
+  int32 msgId = 3;
+}
+
+// Enable/disable charging — App→Bike (control 0x0B)
+message ChargeStatus {
+  bool enableCharge = 1;
+}
+
+// Charge power setting — App→Bike (control 0x71)
+message ChargeSetting {
+  int32 chargePower = 1;
+}
+
+// Max speed limit — App→Bike (control 0x68)
+message Preference {
+  int32 maximumSpeedLimit = 1;
+}
+
+// Display units — App→Bike (control 0x69)
+message Display {
+  enum Distance {
+    NONE1 = 0;
+    KM = 1;
+    MILE = 2;
+  }
+  enum Temperature {
+    NONE2 = 0;
+    CELSIUS = 1;
+    FAHRENHEIT = 2;
+  }
+  enum Time {
+    NONE3 = 0;
+    H12 = 1;
+    H24 = 2;
+  }
+  enum Language {
+    NONE4 = 0;
+    CN = 1;
+    EN = 2;
+  }
+  Distance distance = 1;
+  Temperature temperature = 2;
+  Time time = 3;
+  Language languageType = 4;
+}
+
+// Charger info query — App→Bike (control 0x15)
+message PatchObtainInfoControl {
+  int32 groupId = 1;
+}
+
+// Charger info response — Bike→App (control 0x95)
+message PatchObtainInfoResult {
+  int32 chargerConnState = 1;
+  int32 chargState = 2;
+}
+
+// Generic command result — Bike→App (0xE7, 0xEA, 0xEB, 0xF9, 0x8B)
+// errRes on LockControll: 0/1=unlock, 16/17=lock, 32/33=powerOn, 48/49=powerOff
+message CommandResult {
+  int32 result = 1;
+  int32 errRes = 2;
+}
+
+// 4G command result — Bike→App (0x8A, 0x8C)
+message CommandResult2 {
+  int32 result = 1;
+  int32 errorCode = 2;
+}
+
+// Display theme — App→Bike (control 0x65)
+message Theme {
+  int32 themes = 1;
+}
+
+// Navigation — App→Bike (control 0x66)
+message Navi {
+  int32 direction = 1;
+  int32 distance = 2;
+}

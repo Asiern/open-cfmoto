@@ -8,12 +8,17 @@
     "build": "tsc --project tsconfig.json",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "proto:gen": "protoc -I=proto --plugin=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=./src/generated --ts_proto_opt=esModuleInterop=true --ts_proto_opt=outputEncodeMethods=true --ts_proto_opt=outputJsonMethods=false --ts_proto_opt=useOptionals=messages --ts_proto_opt=onlyTypes=false --ts_proto_opt=forceLong=number meter.proto"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.0.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
+    "ts-proto": "^2.7.0",
     "typescript": "~5.8.3"
   }
 }
