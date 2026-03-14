@@ -6,7 +6,7 @@ JADX_DIR="${1:-$(dirname "$0")/../jadx-output}"
 
 if [ ! -d "$JADX_DIR" ]; then
   echo "ERROR: jadx output directory not found: $JADX_DIR"
-  echo "Run: jadx -d tools/apk-analysis/jadx-output/ --deobf <apk-path>"
+  echo "Run: tools/apk-analysis/scripts/decompile.sh"
   exit 1
 fi
 

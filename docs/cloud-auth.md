@@ -2,6 +2,7 @@
 
 > **Fuente**: análisis estático de `com.cfmoto.cfmotointernational` (jadx).
 > Directorio: `tools/apk-analysis/jadx-output/sources/`
+> Validación dinámica adicional: export Burp `tools/apk-analysis/mitm-logs/full-history` (2026-03-14).
 
 ---
 
@@ -76,6 +77,35 @@ y el TrustManager custom ignora todo de todas formas.
 
 ## Endpoints Cloud
 
+## Hallazgos dinámicos confirmados (2026-03-14)
+
+Sobre la captura exportada (`full-history`):
+
+- Host API observado: `https://tapi-flkf.cfmoto-oversea.com` (dominio regional).
+- Login observado: `POST /v1.0/fuel-user/serveruser/app/auth/user/login_by_idcard`.
+- El endpoint `login_by_idcard` acepta `idcardType: "email"` y `idcard: "<email>"`.
+- El `password` observado via app se envía como hash MD5 (32 hex), no en claro.
+- Token de sesión en respuesta:
+  - `data.tokenInfo.accessToken`
+  - `data.tokenInfo.refreshToken`
+  - `data.tokenInfo.tokenType = "bearer"`
+- Request signing observado en tráfico real:
+  - `Cfmoto-X-Sign`, `Cfmoto-X-Param`, `appId`, `nonce`, `signature`, `timestamp`
+  - `signature` de 32 hex chars en todos los requests cloud capturados.
+- `nonce` observado en captura real: **16 chars**.
+
+Ejemplo sanitizado de login capturado:
+
+```http
+POST /v1.0/fuel-user/serveruser/app/auth/user/login_by_idcard
+Authorization: Bearer cfmoto_virtual_vehicle_token
+Cfmoto-X-Sign: <32-hex>
+Cfmoto-X-Param: appId=rRrIs3ID&nonce=<16chars>&timestamp=<unix-ms>
+Content-Type: application/json; charset=UTF-8
+
+{"idcardType":"email","idcard":"<email>","password":"<md5-32-hex>","areaNo":"ES"}
+```
+
 ### URLs base
 
 `com/cfmoto/cfmotointernational/common/AppConfig.java`:
@@ -96,7 +126,7 @@ Base: `fuel-user/serveruser/`
 
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
-| POST | `app/auth/user/login` | — | **Login** → devuelve Bearer token |
+| POST | `app/auth/user/login_by_idcard` | — | **Login** → devuelve Bearer token |
 | POST | `common/code/send_code_v2` | — | Enviar código SMS/email |
 | POST | `common/code/check_code` | — | Verificar código |
 | POST | `app/auth/user/registe` | — | Registro de usuario |
@@ -113,7 +143,7 @@ Base: `fuel-vehicle/servervehicle/`
 
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
-| GET | `app/vehicle/{vehicleId}` | Bearer | **Detalles vehículo** → `VehicleNowInfoResp` (contiene claves BLE) |
+| GET | `app/vehicle?vehicleId=...` | Bearer | **Detalles vehículo** → `VehicleNowInfoResp` (contiene claves BLE) |
 | POST | `app/vehicle/bind-v3` | Bearer | Vincular vehículo (primera vez) |
 | GET | `app/vehicle/charge/detail/{vehicleId}` | Bearer | Estado de carga |
 | POST | `app/charging/createScheduleCharging` | Bearer | Programar carga |
@@ -130,20 +160,17 @@ Base: `fuel-vehicle/servervehicle/`
 ### Endpoint crítico: claves BLE
 
 ```
-GET https://tapi.cfmoto-oversea.com/v1.0/fuel-vehicle/servervehicle/app/vehicle/{vehicleId}
+GET https://tapi.cfmoto-oversea.com/v1.0/fuel-vehicle/servervehicle/app/vehicle?vehicleId=<vehicleId>
 ```
 
-La respuesta (`VehicleNowInfoResp`) incluye el campo `vehicleInfo.encryptInfo`:
+La respuesta (`VehicleNowInfoResp`) incluye `encryptInfo` en raíz (y en algunos flujos puede verse anidado):
 
 ```json
 {
-  "vehicleInfo": {
-    "encryptInfo": {
-      "encryptValue": "<hex — AuthPackage cifrado enviado al TBox>",
-      "key":          "<clave AES-256 para descifrar el challenge del TBox>",
-      "iv":           "<IV para AES-CBC si aplica>"
-    },
-    "btMac": "XX:XX:XX:XX:XX:XX"
+  "encryptInfo": {
+    "encryptValue": "<hex — AuthPackage cifrado enviado al TBox>",
+    "key":          "<clave AES-256 para descifrar el challenge del TBox>",
+    "iv":           "<IV para AES-CBC si aplica>"
   }
 }
 ```
@@ -283,36 +310,38 @@ En Android:
 2. Iniciar sesión (si no hay sesión activa)
 3. En mitmweb, buscar la request:
    ```
-   POST /v1.0/fuel-user/serveruser/app/auth/user/login
+   POST /v1.0/fuel-user/serveruser/app/auth/user/login_by_idcard
    ```
-   La respuesta contiene el Bearer token en el campo `data.token`.
+   La respuesta contiene el Bearer token en `data.tokenInfo.accessToken`
+   (en respuestas antiguas puede aparecer como `data.token`).
 
 4. Navegar a la pantalla de la moto. Buscar:
    ```
-   GET /v1.0/fuel-vehicle/servervehicle/app/vehicle/<vehicleId>
+   GET /v1.0/fuel-vehicle/servervehicle/app/vehicle?vehicleId=<vehicleId>
    ```
    La respuesta JSON contiene:
    ```json
    {
      "data": {
-       "vehicleInfo": {
-         "encryptInfo": {
-           "encryptValue": "...",
-           "key": "...",
-           "iv": "..."
-         },
-         "btMac": "XX:XX:XX:XX:XX:XX"
+       "encryptInfo": {
+         "encryptValue": "...",
+         "key": "...",
+         "iv": "..."
        }
      }
    }
    ```
    **Estos son los valores que van a `packages/ble-protocol/src/auth.ts`.**
 
+   Nota de la captura actual (`full-history`): solo aparece `vehicleId=-1` (vehículo virtual),
+   y en ese caso la respuesta trae `encryptInfo: {}`. Para validar BLE real se necesita una
+   captura con vehículo físico vinculado (VIN real), donde `encryptInfo` venga poblado.
+
 ### Paso 6 — Guardar las claves y reproducir con curl
 
 ```bash
 # Ejemplo de request autenticado con las credenciales capturadas:
-curl -X GET "https://tapi.cfmoto-oversea.com/v1.0/fuel-vehicle/servervehicle/app/vehicle/<vehicleId>" \
+curl -X GET "https://tapi.cfmoto-oversea.com/v1.0/fuel-vehicle/servervehicle/app/vehicle?vehicleId=<vehicleId>" \
   -H "Authorization: Bearer <token_capturado>" \
   -H "user_id: <userId>" \
   -H "appId: rRrIs3ID" \
@@ -384,15 +413,21 @@ con `packages/ble-protocol/`.
 - El signing implementa `MD5(SHA1(body + params + APPSECRET))`, con:
   - `body = JSON.stringify(body)` para requests con body
   - `body = ""` para requests sin body (ej. GET)
-- `nonce` en la implementacion actual: **8 caracteres** (requisito de este bloque),
-  aunque el APK original usa 16.
+- `nonce` en la implementacion actual: **16 caracteres** (alineado con el APK),
+  usando fuente criptografica cuando esta disponible.
+  - Distribucion alineada con `SignatureUtils.getNonce()`: digito o letra (A..Y / a..y).
 - Se envian headers de firma compatibles:
   - `appId`, `nonce`, `timestamp`, `sign`
   - `signature`, `Cfmoto-X-Param`, `Cfmoto-X-Sign`, `Cfmoto-X-Sign-Type`
 - Login cloud implementado sobre:
-  - `POST /fuel-user/serveruser/app/auth/user/login`
+  - `POST /fuel-user/serveruser/app/auth/user/login_by_idcard`
+  - payload estilo APK: `idcard`, `idcardType`, `password`
+  - `password` se normaliza a MD5 hex (si ya viene en MD5, se reutiliza sin rehash)
+  - extraccion de token desde `data.tokenInfo.accessToken` (con fallback a `data.token`)
 - Vehicle lookup implementado sobre:
-  - `GET /fuel-vehicle/servervehicle/app/vehicle/{vehicleId}`
+  - `GET /fuel-vehicle/servervehicle/app/vehicle?vehicleId=...`
+  - firma GET con query params ordenados y URL-encoded (estilo `RequestSignInterceptor`)
+  - se propaga `user_id` si existe tras login; si no, se envia vacio igual que el interceptor
 - No se persiste password:
   - No se escribe en disco (MMKV/SQLite/etc.)
   - No se guarda en estado de larga vida del cliente cloud

@@ -3,13 +3,35 @@ export const CLOUD_CONFIG = {
   APP_SECRET: '6c1936f85ecb23508c02ceb7a6e3fd0e33eb8bd2',
   BASE_URL: 'https://tapi.cfmoto-oversea.com/v1.0',
   ENDPOINTS: {
-    LOGIN: '/fuel-user/serveruser/app/auth/user/login',
+    LOGIN: '/fuel-user/serveruser/app/auth/user/login_by_idcard',
     VEHICLE_BY_ID: '/fuel-vehicle/servervehicle/app/vehicle',
   },
   SIGN_TYPE: '0',
-  NONCE_LENGTH: 8,
+  NONCE_LENGTH: 16,
+  VIRTUAL_VEHICLE_TOKEN: 'cfmoto_virtual_vehicle_token',
+  DEFAULT_AREA_NO: '',
 } as const;
 
 export const COMMON_HEADERS = {
-  'Content-Type': 'application/json',
+  'Content-Type': 'application/json; charset=UTF-8',
 } as const;
+
+export function resolveZoneId(): string {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return tz || 'UTC';
+}
+
+export function resolveLangHeader(): string {
+  const locale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
+  return locale.replace('-', '_');
+}
+
+export function resolveAreaNo(): string {
+  const locale = Intl.DateTimeFormat().resolvedOptions().locale || '';
+  const normalized = locale.replace('_', '-');
+  const region = normalized.includes('-') ? normalized.split('-')[1] : '';
+  if (region && /^[a-z]{2}$/i.test(region)) {
+    return region.toUpperCase();
+  }
+  return CLOUD_CONFIG.DEFAULT_AREA_NO;
+}

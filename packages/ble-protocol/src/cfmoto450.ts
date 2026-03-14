@@ -19,11 +19,15 @@ export class CFMoto450Protocol implements IBikeProtocol {
   private unsubscribeNotify: (() => void) | null = null;
   /** Active auth router — non-null only while authentication is in progress */
   private authRouter: ResponseRouter | null = null;
-  private readonly cloudAuthClient: Pick<CloudAuthClient, 'login'>;
+  private readonly cloudAuthClient: Pick<CloudAuthClient, 'login'> & {
+    getUserId?: () => string | null;
+  };
   private readonly vehicleClient: Pick<VehicleClient, 'getEncryptInfo'>;
 
   constructor(clients?: {
-    cloudAuthClient?: Pick<CloudAuthClient, 'login'>;
+    cloudAuthClient?: Pick<CloudAuthClient, 'login'> & {
+      getUserId?: () => string | null;
+    };
     vehicleClient?: Pick<VehicleClient, 'getEncryptInfo'>;
   }) {
     this.cloudAuthClient = clients?.cloudAuthClient ?? new CloudAuthClient();
@@ -71,9 +75,11 @@ export class CFMoto450Protocol implements IBikeProtocol {
         cloudCredentials.username,
         cloudCredentials.password,
       );
+      const userId = this.cloudAuthClient.getUserId?.() ?? null;
       const encryptInfo = await this.vehicleClient.getEncryptInfo(
         cloudCredentials.vehicleId,
         token,
+        userId,
       );
 
       const credentials: AuthCredentials = {

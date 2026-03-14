@@ -14,14 +14,12 @@ describe('VehicleClient', () => {
       ok: true,
       status: 200,
       json: async () => ({
-        code: 0,
+        code: '0',
         data: {
-          vehicleInfo: {
-            encryptInfo: {
-              encryptValue: 'abcd',
-              key: '12345678901234567890123456789012',
-              iv: '0000000000000000',
-            },
+          encryptInfo: {
+            encryptValue: 'abcd',
+            key: '12345678901234567890123456789012',
+            iv: '0000000000000000',
           },
         },
       }),
@@ -51,11 +49,9 @@ describe('VehicleClient', () => {
       ok: true,
       status: 200,
       json: async () => ({
-        code: 0,
+        code: '0',
         data: {
-          vehicleInfo: {
-            encryptInfo: { encryptValue: '00', key: 'k'.repeat(32), iv: '' },
-          },
+          encryptInfo: { encryptValue: '00', key: 'k'.repeat(32), iv: '' },
         },
       }),
     } as Response);
@@ -70,5 +66,6 @@ describe('VehicleClient', () => {
     expect(headers.has('timestamp')).toBe(true);
     expect(headers.has('sign')).toBe(true);
     expect(headers.get('Authorization')).toBe('Bearer tok-2');
+    expect(fetchMock.mock.calls[0]?.[0]).toContain('/fuel-vehicle/servervehicle/app/vehicle?vehicleId=veh-2');
   });
 });

@@ -1,4 +1,5 @@
-import { CLOUD_CONFIG, COMMON_HEADERS } from './config';
+import CryptoJS from 'crypto-js';
+import { CLOUD_CONFIG, COMMON_HEADERS, resolveAreaNo, resolveLangHeader, resolveZoneId } from './config';
 import { buildSignedHeaders } from './signing';
 import { CloudAuthError, CloudErrorPayload, LoginResponse } from './types';
 
@@ -14,11 +15,45 @@ function mergeHeaders(a: Headers, b: Record<string, string>): Headers {
   return merged;
 }
 
+function detectIdcardType(username: string): string {
+  return username.includes('@') ? 'email' : 'phone';
+}
+
+function normalizePassword(password: string): string {
+  const trimmed = password.trim();
+  if (/^[0-9a-f]{32}$/i.test(trimmed)) {
+    return trimmed.toLowerCase();
+  }
+  return CryptoJS.MD5(password).toString(CryptoJS.enc.Hex);
+}
+
+function normalizeCode(payload: CloudErrorPayload): {
+  codeNumber?: number;
+  codeText?: string;
+  isErrorCode: boolean;
+} {
+  if (typeof payload.code === 'number') {
+    return {
+      codeNumber: payload.code,
+      codeText: String(payload.code),
+      isErrorCode: payload.code !== 0 && payload.code !== 200,
+    };
+  }
+  if (typeof payload.code === 'string') {
+    return {
+      codeText: payload.code,
+      isErrorCode: payload.code !== '0' && payload.code !== '200',
+    };
+  }
+  return { isErrorCode: false };
+}
+
 function isApiError(resp: Response, payload: CloudErrorPayload): boolean {
   if (!resp.ok) {
     return true;
   }
-  if (typeof payload.code === 'number' && payload.code !== 0 && payload.code !== 200) {
+  const normalized = normalizeCode(payload);
+  if (normalized.isErrorCode) {
     return true;
   }
   if (typeof payload.success === 'boolean' && payload.success === false) {
@@ -29,13 +64,31 @@ function isApiError(resp: Response, payload: CloudErrorPayload): boolean {
 
 export class CloudAuthClient {
   private token: string | null = null;
+  private userId: string | null = null;
 
   constructor(private readonly baseUrl: string = CLOUD_CONFIG.BASE_URL) {}
 
   async login(username: string, password: string): Promise<string> {
-    const body = { username, password };
+    const areaNo = resolveAreaNo();
+    const body = {
+      idcard: username,
+      idcardType: detectIdcardType(username),
+      password: normalizePassword(password),
+      thirdpartyId: '',
+      thirdpartyType: '',
+      areaCode: '',
+      areaNo,
+      emailMarketingAlarm: false,
+      verifyCode: '',
+    };
     const signed = buildSignedHeaders(body);
-    const headers = mergeHeaders(signed, COMMON_HEADERS);
+    const headers = mergeHeaders(signed, {
+      ...COMMON_HEADERS,
+      Authorization: `Bearer ${CLOUD_CONFIG.VIRTUAL_VEHICLE_TOKEN}`,
+      user_id: '',
+      lang: resolveLangHeader(),
+      ZoneId: resolveZoneId(),
+    });
     const url = joinUrl(this.baseUrl, CLOUD_CONFIG.ENDPOINTS.LOGIN);
 
     const resp = await fetch(url, {
@@ -55,14 +108,17 @@ export class CloudAuthClient {
 
     if (isApiError(resp, payload)) {
       const message = payload.msg ?? payload.message ?? 'Cloud login rejected';
+      const codeInfo = normalizeCode(payload);
       throw new CloudAuthError(message, {
-        code: payload.code,
+        code: codeInfo.codeNumber,
+        codeText: codeInfo.codeText,
         status: resp.status,
         details: payload,
       });
     }
 
-    const token = (payload as LoginResponse).data?.token;
+    const loginPayload = payload as LoginResponse;
+    const token = loginPayload.data?.tokenInfo?.accessToken ?? loginPayload.data?.token;
     if (!token) {
       throw new CloudAuthError('Cloud login response missing token', {
         status: resp.status,
@@ -70,6 +126,7 @@ export class CloudAuthClient {
       });
     }
 
+    this.userId = loginPayload.data?.userId ?? null;
     this.token = token;
     return token;
   }
@@ -87,5 +144,9 @@ export class CloudAuthClient {
 
   getToken(): string | null {
     return this.token;
+  }
+
+  getUserId(): string | null {
+    return this.userId;
   }
 }

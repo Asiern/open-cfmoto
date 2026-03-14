@@ -248,6 +248,16 @@ VehicleNowInfoResp {
 - **Cannot be computed offline:** Both `encryptValue` and `key` come from the server
   — there is no derivation logic in the APK
 
+### Dynamic capture status (2026-03-14)
+
+From Burp export `tools/apk-analysis/mitm-logs/full-history`:
+
+- Login + signed cloud traffic are confirmed in runtime.
+- The observed vehicle requests were for `vehicleId=-1` (virtual vehicle mode).
+- In that mode, server returned `encryptInfo: {}` (empty).
+- Pending: capture with a real linked vehicle (`vehicleId` real) to obtain
+  `encryptValue`, `key`, and `iv` for end-to-end BLE auth validation.
+
 ---
 
 ## 5. Hardcoded Keys

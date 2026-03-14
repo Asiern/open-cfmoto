@@ -16,12 +16,15 @@ export interface VehicleInfo {
 }
 
 export interface VehicleNowInfoData {
-  vehicleInfo: VehicleInfo;
+  vehicleId?: string;
+  btMac?: string;
+  encryptInfo?: EncryptInfo;
+  vehicleInfo?: VehicleInfo;
   [key: string]: unknown;
 }
 
 export interface VehicleNowInfoResp {
-  code: number;
+  code: number | string;
   msg?: string;
   message?: string;
   data: VehicleNowInfoData;
@@ -29,14 +32,23 @@ export interface VehicleNowInfoResp {
   [key: string]: unknown;
 }
 
+export interface TokenInfo {
+  accessToken: string;
+  refreshToken?: string;
+  tokenType?: string;
+  expiresIn?: number;
+  [key: string]: unknown;
+}
+
 export interface LoginData {
-  token: string;
-  userId?: number | string;
+  token?: string;
+  tokenInfo?: TokenInfo;
+  userId?: string;
   [key: string]: unknown;
 }
 
 export interface LoginResponse {
-  code: number;
+  code: number | string;
   msg?: string;
   message?: string;
   data: LoginData;
@@ -45,7 +57,7 @@ export interface LoginResponse {
 }
 
 export interface CloudErrorPayload {
-  code?: number;
+  code?: number | string;
   msg?: string;
   message?: string;
   success?: boolean;
@@ -54,13 +66,18 @@ export interface CloudErrorPayload {
 
 export class CloudAuthError extends Error {
   readonly code?: number;
+  readonly codeText?: string;
   readonly status?: number;
   readonly details?: unknown;
 
-  constructor(message: string, options?: { code?: number; status?: number; details?: unknown }) {
+  constructor(
+    message: string,
+    options?: { code?: number; codeText?: string; status?: number; details?: unknown },
+  ) {
     super(message);
     this.name = 'CloudAuthError';
     this.code = options?.code;
+    this.codeText = options?.codeText;
     this.status = options?.status;
     this.details = options?.details;
   }

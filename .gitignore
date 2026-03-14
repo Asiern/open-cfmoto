@@ -15,6 +15,7 @@ ios/
 tools/apk-analysis/apk/
 tools/apk-analysis/jadx-output/
 tools/apk-analysis/snoop-logs/
+tools/apk-analysis/mitm-logs/
 
 # Env
 .env

@@ -10,6 +10,7 @@ const STATE_COLORS: Record<ConnectionState, string> = {
   scanning: '#f0a500',
   connecting: '#f0a500',
   connected: '#22c55e',
+  authenticated: '#16a34a',
   error: '#ef4444',
 };
 
@@ -18,6 +19,7 @@ const STATE_LABELS: Record<ConnectionState, string> = {
   scanning: 'Scanning...',
   connecting: 'Connecting...',
   connected: 'Connected',
+  authenticated: 'Authenticated',
   error: 'Error',
 };
 
