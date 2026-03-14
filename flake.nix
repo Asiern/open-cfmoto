@@ -66,6 +66,9 @@
             # Python for decode-btsnoop.py
             python
 
+            # Protobuf compiler (for ts-proto codegen: pnpm proto:gen)
+            protobuf
+
             # Useful RE extras
             wireshark-cli   # tshark — filter btsnoop without GUI
           ];
