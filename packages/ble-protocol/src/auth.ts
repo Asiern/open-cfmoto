@@ -43,7 +43,11 @@ export class AuthFlow {
    * Auth Step 2: decrypt the bike's random challenge and build the response frame payload.
    * Called after receiving control 0x5B (TboxRandomNum) from the bike.
    *
-   * @param _codec - TboxRandomNum.codec string received from bike (control 0x5B)
+   * @param _codec - The encrypted random challenge from the bike. This is
+   *   `TboxRandomNum.codec` as a string. Note: the proto field is `bytes` (Uint8Array),
+   *   so the caller must convert first:
+   *   `const codec = new TextDecoder().decode(tboxRandomNum.codec)`
+   *   before passing it here. The resulting string is passed as-is to AES-256 decrypt.
    * @param _key   - AES key string from VehicleNowInfoResp.encryptInfo.key (UTF-8 bytes)
    * @returns Uint8Array — encoded RandomNum { sn: decryptedString } protobuf bytes,
    *          ready for buildFrame(0x5C, ...)

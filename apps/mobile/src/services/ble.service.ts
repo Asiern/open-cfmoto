@@ -9,7 +9,7 @@ import { CFMoto450Protocol } from '@open-cfmoto/ble-protocol';
 import { useBikeStore } from '../stores/bike.store';
 import { SERVICE_MAIN } from '@open-cfmoto/ble-protocol';
 
-class BleService {
+export class BleService {
   private protocol: IBikeProtocol | null = null;
   private transport: BleTransport | null = null;
   private disconnectFn: (() => void) | null = null;
@@ -63,6 +63,19 @@ class BleService {
     this.unsubscribeData = null;
     this.disconnectFn = null;
     useBikeStore.getState().reset();
+  }
+
+  /** Send a pre-built BLE frame (Uint8Array) to the connected bike. */
+  async sendCommand(frame: Uint8Array): Promise<void> {
+    if (!this.protocol) throw new Error('BleService not initialized');
+    await this.protocol.sendCommand(frame);
+  }
+
+  /** Release all resources. Call on app unmount (CFMotoProvider cleanup). */
+  destroy(): void {
+    this.disconnect();
+    this.protocol = null;
+    this.transport = null;
   }
 }
 

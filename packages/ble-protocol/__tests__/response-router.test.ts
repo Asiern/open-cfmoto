@@ -64,22 +64,14 @@ describe('ResponseRouter', () => {
     expect(calls.sort()).toEqual([1, 2]);
   });
 
-  test('all bike→app control codes are defined in ControlCode', () => {
-    const bikeToAppCodes = [
-      0x5b, // TBOX_RANDOM_NUM
-      0x5d, // TBOX_AUTH_RESULT
-      0x8a, // OPERATE_4G_RESULT
-      0x8b, // RECHARGE_RESULT
-      0x8c, // OPERATE_4G_COMPLEX_RESULT
-      0x95, // PATCH_OBTAIN_INFO_RESULT
-      0xe7, // LOCK_RESULT
-      0xea, // FIND_CAR_RESULT
-      0xeb, // LIGHT_CONTROL_RESULT
-      0xf1, // CHARGE_OPT_RESULT
-      0xf9, // KL15_RESULT
-    ];
-    for (const code of bikeToAppCodes) {
-      expect(Object.values(ControlCode)).toContain(code);
+  test('all ControlCode values can be registered and dispatched', () => {
+    // Derived from ControlCode map — automatically covers any new codes added there.
+    for (const code of Object.values(ControlCode)) {
+      const received: Uint8Array[] = [];
+      const unregister = router.register(code, (p) => received.push(p));
+      router.dispatch(buildFrame(code, new Uint8Array([0x01])));
+      expect(received).toHaveLength(1);
+      unregister();
     }
   });
 });

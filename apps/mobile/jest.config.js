@@ -2,7 +2,10 @@
 /** @type {import('jest').Config} */
 module.exports = {
   testEnvironment: 'node',
-  testMatch: ['<rootDir>/src/__tests__/**/*.test.ts'],
+  testMatch: [
+    '<rootDir>/src/__tests__/**/*.test.ts',
+    '<rootDir>/src/__tests__/**/*.test.tsx',
+  ],
   moduleNameMapper: {
     // Resolve workspace package to its source during tests
     '^@open-cfmoto/ble-protocol$':
@@ -24,6 +27,7 @@ module.exports = {
           target: 'ES2020',
           lib: ['ES2020'],
           resolveJsonModule: true,
+          jsx: 'react',
         },
       },
     ],

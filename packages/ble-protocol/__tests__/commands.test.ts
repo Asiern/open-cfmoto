@@ -7,7 +7,6 @@ import {
   setIndicators,
   setUnits,
   setSpeedLimit,
-  heartbeat,
 } from '../src/commands';
 import {
   FindCar,
@@ -22,7 +21,6 @@ import {
   Display_Time,
   Display_Language,
   Preference,
-  Heartbeat,
 } from '../src/generated/meter';
 
 function makeLockPayload(): Uint8Array {
@@ -174,13 +172,4 @@ describe('setSpeedLimit()', () => {
   });
 });
 
-describe('heartbeat()', () => {
-  test('returns valid frame with LOCK_CONTROL code and ping=1', () => {
-    const frame = heartbeat();
-    const parsed = parseFrame(frame);
-    expect(parsed.valid).toBe(true);
-    expect(parsed.controlCode).toBe(ControlCode.LOCK_CONTROL);
-    const msg = Heartbeat.decode(parsed.payload);
-    expect(msg.ping).toBe(1);
-  });
-});
+// heartbeat() removed from commands — KeepAliveManager owns the heartbeat frame.

@@ -9,7 +9,6 @@ import { buildFrame } from '../codec';
 import { ControlCode } from '../response-router';
 import {
   FindCar,
-  Heartbeat,
   LightControl,
   LightControl_Type,
   Display,
@@ -131,10 +130,5 @@ export function setSpeedLimit(kmh: number): Uint8Array {
   return buildFrame(ControlCode.PREFERENCE, payload);
 }
 
-/**
- * Build a keep-alive heartbeat frame (Heartbeat { ping: 1 } on LOCK_CONTROL).
- */
-export function heartbeat(): Uint8Array {
-  const payload = Heartbeat.encode(Heartbeat.fromPartial({ ping: 1 })).finish();
-  return buildFrame(ControlCode.LOCK_CONTROL, payload);
-}
+// NOTE: Heartbeat frames are sent exclusively by KeepAliveManager.
+// There is no public heartbeat() builder — use KeepAliveManager.start().

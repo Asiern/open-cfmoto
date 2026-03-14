@@ -10,6 +10,8 @@ const TICK_INTERVAL_MS = 500;
 function syntheticBikeData(tick: number): BikeData {
   const t = tick * 0.1;
   return {
+    // MOCK ONLY — en hardware real estos campos no llegan por BLE.
+    // La telemetría real viene del cloud via MQTT/VehicleNowInfoResp.
     rpm: Math.round(1200 + Math.sin(t) * 800),
     speedKmh: Math.round(Math.max(0, 60 + Math.sin(t * 0.7) * 40)),
     gear: Math.min(6, Math.max(1, Math.round(3 + Math.sin(t * 0.3) * 2))),
