@@ -37,9 +37,10 @@ export const ControlCode = {
   RECHARGE_RESULT: 0x8b,           // Recharge result (CommandResult)
   OPERATE_4G_COMPLEX_RESULT: 0x8c, // Complex 4G result (CommandResult2)
   PATCH_OBTAIN_INFO_RESULT: 0x95,  // Charger info result (PatchObtainInfoResult)
-  LOCK_RESULT: 0xe7,               // Lock/unlock/power ACK + heartbeat ACK (CommandResult)
+  LOCK_RESULT: 0xe7,               // Lock/unlock/power ACK (CommandResult)
   FIND_CAR_RESULT: 0xea,           // Find car result (CommandResult)
   LIGHT_CONTROL_RESULT: 0xeb,      // Light control result (CommandResult)
+  KEEP_ALIVE_RESULT: 0xec,         // Keep-alive response (keep_auth 0x6C → 0xEC)
   CHARGE_OPT_RESULT: 0xf1,         // Charge opt result
   KL15_RESULT: 0xf9,               // KL15 result (CommandResult)
 } as const;

@@ -18,6 +18,10 @@ export class CFMoto450Protocol implements IBikeProtocol {
 
     await transport.connect(peripheralId);
 
+    // Delay 100ms before enabling notify — confirmed in BleModel.java onConnectSuccess().
+    // Without this, some devices reject the descriptor write on an unstable GATT connection.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     this.unsubscribeNotify = await transport.subscribe(
       peripheralId,
       SERVICE_MAIN,
