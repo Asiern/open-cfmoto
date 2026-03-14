@@ -117,4 +117,53 @@ describe('VehicleClient', () => {
     const client = new VehicleClient('https://example.test/v1.0');
     await expect(client.getUserVehicles('tok-4', 'user-1')).rejects.toBeInstanceOf(CloudAuthError);
   });
+
+  describe('getVehicles()', () => {
+    test('devuelve lista de vehículos con token', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          code: '0',
+          data: [
+            { vehicleId: 'veh-10', vehicleName: 'NK 450', vin: 'LCEP0001', btMac: 'AA:BB:CC:DD:EE:FF' },
+          ],
+        }),
+      } as Response);
+
+      const client = new VehicleClient('https://example.test/v1.0');
+      const result = await client.getVehicles('tok-5');
+
+      expect(result).toEqual([
+        expect.objectContaining({ vehicleId: 'veh-10', vehicleName: 'NK 450' }),
+      ]);
+      const url = fetchMock.mock.calls[0]?.[0] as string;
+      expect(url).toContain('/fuel-vehicle/servervehicle/app/vehicle/mine?position=1');
+      const headers = new Headers((fetchMock.mock.calls[0]?.[1] as RequestInit).headers as HeadersInit);
+      expect(headers.get('Authorization')).toBe('Bearer tok-5');
+      expect(headers.get('user_id')).toBe('');
+    });
+
+    test('devuelve array vacío si data es []', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ code: '0', data: [] }),
+      } as Response);
+
+      const client = new VehicleClient('https://example.test/v1.0');
+      await expect(client.getVehicles('tok-6')).resolves.toEqual([]);
+    });
+
+    test('lanza CloudAuthError en error HTTP', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ code: 40100, msg: 'Unauthorized' }),
+      } as Response);
+
+      const client = new VehicleClient('https://example.test/v1.0');
+      await expect(client.getVehicles('tok-expired')).rejects.toBeInstanceOf(CloudAuthError);
+    });
+  });
 });

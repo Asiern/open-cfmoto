@@ -92,10 +92,10 @@ export class VehicleClient {
     };
   }
 
-  async getUserVehicles(
+  private async fetchVehicleList(
     token: string,
-    userId?: string | null,
-    position = 1,
+    userId: string | null | undefined,
+    position: number,
   ): Promise<UserVehicle[]> {
     const query = { position: String(position) };
     const headers = this.buildCommonGetHeaders(token, userId, query);
@@ -144,5 +144,23 @@ export class VehicleClient {
       });
     }
     return vehiclesPayload.data;
+  }
+
+  // APK uses position=2 for full vehicle list (VehicleGarageActivity, OtaActivity).
+  // position=1 appears to return only the current/primary vehicle.
+  async getVehicles(token: string): Promise<UserVehicle[]> {
+    return this.fetchVehicleList(token, null, 2);
+  }
+
+  /**
+   * @deprecated Use getVehicles() for the simple case. This overload remains
+   * for callers that need to pass userId or a specific page position.
+   */
+  async getUserVehicles(
+    token: string,
+    userId?: string | null,
+    position = 1,
+  ): Promise<UserVehicle[]> {
+    return this.fetchVehicleList(token, userId, position);
   }
 }
