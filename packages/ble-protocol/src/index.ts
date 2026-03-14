@@ -4,6 +4,7 @@ export * from './codec';
 export * from './auth';
 export * from './response-router';
 export * from './keepalive';
+export * from './commands';
 export { CFMoto450Protocol } from './cfmoto450';
 export { MockBleTransport, MockBikeProtocol } from './mock/mock-protocol';
 // Note: src/generated/meter.ts is intentionally NOT re-exported from the package
