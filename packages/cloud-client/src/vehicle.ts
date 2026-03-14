@@ -6,6 +6,7 @@ import {
   EncryptInfo,
   UserVehicle,
   UserVehiclesResponse,
+  VehicleNowInfoData,
   VehicleNowInfoResp,
 } from './types';
 
@@ -46,15 +47,16 @@ export class VehicleClient {
     return headers;
   }
 
-  async getEncryptInfo(vehicleId: string, token: string, userId?: string | null): Promise<EncryptInfo> {
+  private async fetchVehicleNowInfo(
+    vehicleId: string,
+    token: string,
+    userId?: string | null,
+  ): Promise<VehicleNowInfoData> {
     const headers = this.buildCommonGetHeaders(token, userId, { vehicleId });
     const path = `${CLOUD_CONFIG.ENDPOINTS.VEHICLE_BY_ID}?vehicleId=${encodeURIComponent(vehicleId)}`;
     const url = joinUrl(this.baseUrl, path);
 
-    const resp = await fetch(url, {
-      method: 'GET',
-      headers,
-    });
+    const resp = await fetch(url, { method: 'GET', headers });
 
     let payload: VehicleNowInfoResp | CloudErrorPayload;
     try {
@@ -75,16 +77,25 @@ export class VehicleClient {
       });
     }
 
-    const vehiclePayload = payload as VehicleNowInfoResp;
-    const encryptInfo =
-      vehiclePayload.data?.encryptInfo ?? vehiclePayload.data?.vehicleInfo?.encryptInfo;
+    return (payload as VehicleNowInfoResp).data;
+  }
+
+  async getVehicleDetail(
+    vehicleId: string,
+    token: string,
+    userId?: string | null,
+  ): Promise<VehicleNowInfoData> {
+    return this.fetchVehicleNowInfo(vehicleId, token, userId);
+  }
+
+  async getEncryptInfo(vehicleId: string, token: string, userId?: string | null): Promise<EncryptInfo> {
+    const data = await this.fetchVehicleNowInfo(vehicleId, token, userId);
+    const encryptInfo = data.encryptInfo ?? data.vehicleInfo?.encryptInfo;
     if (!encryptInfo?.encryptValue || !encryptInfo?.key || typeof encryptInfo.iv !== 'string') {
       throw new CloudAuthError('Vehicle response missing encryptInfo fields', {
-        status: resp.status,
-        details: payload,
+        details: data,
       });
     }
-
     return {
       encryptValue: encryptInfo.encryptValue,
       key: encryptInfo.key,

@@ -15,11 +15,49 @@ export interface VehicleInfo {
   [key: string]: unknown;
 }
 
+export interface GeoLocation {
+  lat?: number;
+  lon?: number;
+  speed?: number;
+  altitude?: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Response data from GET /fuel-vehicle/servervehicle/app/vehicle?vehicleId=<id>
+ * Fields sourced from VehicleNowInfoResp.java in APK decompilation.
+ */
 export interface VehicleNowInfoData {
+  // Identity
   vehicleId?: string;
   btMac?: string;
+  vin?: string;
+  // BLE auth keys (may be absent for virtual/non-TBox vehicles)
   encryptInfo?: EncryptInfo;
   vehicleInfo?: VehicleInfo;
+  // Connectivity
+  isOnline?: boolean;
+  deviceState?: string;
+  vehicleState?: string;
+  tboxIsActive?: boolean | null;
+  supportRemoteUnlock?: boolean;
+  // Ignition & lock states (string values from TBox, e.g. "0"/"1")
+  kl?: string;
+  batteryLockState?: string;
+  headLockState?: string;
+  seatLockState?: string;
+  oilLockState?: string;
+  vcuLockState?: boolean;
+  // Telemetry / ride stats
+  speed?: string;
+  totalRideMile?: string;
+  rideMileageMonth?: string;
+  bmsSoc?: string;
+  chargeState?: string;
+  remainingOil?: string;
+  remainingOilStr?: string;
+  // Location
+  geoLocation?: GeoLocation;
   [key: string]: unknown;
 }
 
