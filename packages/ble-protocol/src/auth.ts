@@ -1,63 +1,155 @@
 /**
- * CFMoto TBox BLE authentication flow — STUB.
+ * BLE Authentication Flow for CFMoto 450-series TBox.
  *
- * Exact 2-send / 2-receive sequence (from BleModel.java):
+ * Confirmed 4-step challenge-response from jadx decompilation of
+ * com.cfmoto.cfmotointernational (BleModel.java, AES256EncryptionUtil.java).
  *
- *   App → Bike  0x5A  AuthPackage { info: hex_decode(encryptValue) }
- *   Bike → App  0x5B  TboxRandomNum { codec: string }   ← encrypted random challenge
- *   App → Bike  0x5C  RandomNum { sn: AES256_ECB_PKCS7_decrypt(codec, key) }
- *   Bike → App  0x5D  TboxAuthResult { result: 0 }      ← 0 = success
- *
- * Keys (encryptValue, key, iv) come from cloud API: VehicleNowInfoResp.encryptInfo.
- * Cloud API integration is NOT in scope for Block 1.
- *
- * Crypto: AES-256/ECB/PKCS7Padding (BouncyCastle).
- *   - Key:   raw bytes of encryptInfo.key string (UTF-8)
- *   - Input: TboxRandomNum.codec string (NOT hex-decoded — pass as-is to AES decrypt)
- *   - Output: decrypted string → RandomNum.sn field
+ * See docs/auth-protocol.md for full protocol documentation.
  */
 
-export class NotImplementedError extends Error {
+import CryptoJS from 'crypto-js';
+import { buildFrame } from './codec';
+import {
+  AuthPackage,
+  TboxRandomNum,
+  RandomNum,
+  TboxAuthResult,
+} from './generated/meter';
+import { ControlCode, ResponseRouter } from './response-router';
+
+export class AuthError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'NotImplementedError';
+    this.name = 'AuthError';
   }
 }
 
-export class AuthFlow {
-  /**
-   * Auth Step 1: build AuthPackage frame payload.
-   * @param encryptValue - hex string from VehicleNowInfoResp.encryptInfo.encryptValue
-   * @returns Uint8Array — encoded AuthPackage protobuf bytes, ready for buildFrame(0x5A, ...)
-   * @throws NotImplementedError — cloud key integration not yet in scope
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async step1(_encryptValue: string): Promise<Uint8Array> {
-    throw new NotImplementedError(
-      'Auth Step 1 not implemented: requires VehicleNowInfoResp.encryptInfo from cloud API. ' +
-        'See docs/protocol.md §6 for the full auth flow.',
-    );
+export interface AuthCredentials {
+  /** Hex string from cloud API (VehicleNowInfoResp.encryptInfo.encryptValue) */
+  encryptValue: string;
+  /** AES key string from cloud API (VehicleNowInfoResp.encryptInfo.key), UTF-8 encoded */
+  key: string;
+}
+
+/** Hex-decode a hex string into a Uint8Array. */
+function hexDecode(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   }
+  return bytes;
+}
+
+/**
+ * Decrypt ciphertext bytes using AES-256/ECB/PKCS7.
+ * Mirrors AES256EncryptionUtil.decrypt(hexStr, key) from the APK.
+ * - keyUtf8: the raw key string (UTF-8 bytes used as AES key)
+ * - ciphertextBytes: raw binary ciphertext (hex-decoded from TboxRandomNum.codec)
+ * Returns the decrypted UTF-8 string.
+ */
+function aesDecrypt(ciphertextBytes: Uint8Array, keyUtf8: string): string {
+  const keyWordArray = CryptoJS.enc.Utf8.parse(keyUtf8);
+  const ciphertextWordArray = CryptoJS.lib.WordArray.create(
+    ciphertextBytes as unknown as number[],
+  );
+  const decrypted = CryptoJS.AES.decrypt(
+    { ciphertext: ciphertextWordArray } as CryptoJS.lib.CipherParams,
+    keyWordArray,
+    { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 },
+  );
+  return decrypted.toString(CryptoJS.enc.Utf8);
+}
+
+const AUTH_TIMEOUT_MS = 5000;
+
+export class AuthFlow {
+  constructor(
+    private sendFn: (frame: Uint8Array) => Promise<void>,
+    private router: ResponseRouter,
+  ) {}
 
   /**
-   * Auth Step 2: decrypt the bike's random challenge and build the response frame payload.
-   * Called after receiving control 0x5B (TboxRandomNum) from the bike.
+   * Execute the full 4-step BLE authentication sequence.
+   * Resolves when the bike confirms success (0x5D result=0).
+   * Rejects with AuthError on failure or timeout.
    *
-   * @param _codec - The encrypted random challenge from the bike. This is
-   *   `TboxRandomNum.codec` as a string. Note: the proto field is `bytes` (Uint8Array),
-   *   so the caller must convert first:
-   *   `const codec = new TextDecoder().decode(tboxRandomNum.codec)`
-   *   before passing it here. The resulting string is passed as-is to AES-256 decrypt.
-   * @param _key   - AES key string from VehicleNowInfoResp.encryptInfo.key (UTF-8 bytes)
-   * @returns Uint8Array — encoded RandomNum { sn: decryptedString } protobuf bytes,
-   *          ready for buildFrame(0x5C, ...)
-   * @throws NotImplementedError — cloud key integration not yet in scope
+   * Timeouts: 5000ms waiting for 0x5B, 5000ms waiting for 0x5D.
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async step2(_codec: string, _key: string): Promise<Uint8Array> {
-    throw new NotImplementedError(
-      'Auth Step 2 not implemented: requires encryptInfo.key for AES-256/ECB/PKCS7 decrypt. ' +
-        'See docs/protocol.md §6 for crypto details.',
+  async authenticate(params: AuthCredentials): Promise<void> {
+    const { encryptValue, key } = params;
+
+    // --- Wait for 0x5B (TboxRandomNum) ---
+    const randomNumPayload = await new Promise<Uint8Array>((resolve, reject) => {
+      let unregister: (() => void) | null = null;
+      const timer = setTimeout(() => {
+        unregister?.();
+        reject(new AuthError('Timeout waiting for 0x5B TboxRandomNum response'));
+      }, AUTH_TIMEOUT_MS);
+
+      unregister = this.router.register(ControlCode.TBOX_RANDOM_NUM, (payload) => {
+        clearTimeout(timer);
+        unregister?.();
+        resolve(payload);
+      });
+
+      // Step 1: send 0x5A AuthPackage
+      const raw = hexDecode(encryptValue);
+      const authPkg = AuthPackage.fromPartial({ info: raw });
+      const frame = buildFrame(
+        ControlCode.AUTH_PACKAGE,
+        AuthPackage.encode(authPkg).finish(),
+      );
+      this.sendFn(frame).catch((err: unknown) => {
+        clearTimeout(timer);
+        unregister?.();
+        reject(new AuthError(`Failed to send 0x5A frame: ${String(err)}`));
+      });
+    });
+
+    // Step 3: decode TboxRandomNum, decrypt, send 0x5C RandomNum
+    const tboxRandomNum = TboxRandomNum.decode(randomNumPayload);
+
+    // TODO(hardware): confirm TboxRandomNum.codec encoding.
+    // APK analysis: codec contains ASCII chars of a hex string (toStringUtf8 → hexDecode → ciphertext).
+    // If auth fails on hardware, also try:
+    //   1. Pass raw codec bytes directly to AES (codec is raw binary ciphertext)
+    //   2. Base64-decode codec string
+    const codecHex = new TextDecoder().decode(tboxRandomNum.codec);
+    const ciphertext = hexDecode(codecHex);
+    const sn = aesDecrypt(ciphertext, key);
+
+    const randomNum = RandomNum.fromPartial({ sn });
+    const step3Frame = buildFrame(
+      ControlCode.RANDOM_NUM,
+      RandomNum.encode(randomNum).finish(),
     );
+
+    // --- Wait for 0x5D (TboxAuthResult) ---
+    await new Promise<void>((resolve, reject) => {
+      let unregister: (() => void) | null = null;
+      const timer = setTimeout(() => {
+        unregister?.();
+        reject(new AuthError('Timeout waiting for 0x5D TboxAuthResult response'));
+      }, AUTH_TIMEOUT_MS);
+
+      unregister = this.router.register(ControlCode.TBOX_AUTH_RESULT, (payload) => {
+        clearTimeout(timer);
+        unregister?.();
+        const result = TboxAuthResult.decode(payload);
+        if (result.result !== 0) {
+          reject(
+            new AuthError(`Auth rejected by bike: TboxAuthResult.result=${result.result}`),
+          );
+        } else {
+          resolve();
+        }
+      });
+
+      this.sendFn(step3Frame).catch((err: unknown) => {
+        clearTimeout(timer);
+        unregister?.();
+        reject(new AuthError(`Failed to send 0x5C frame: ${String(err)}`));
+      });
+    });
   }
 }

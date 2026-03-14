@@ -74,6 +74,15 @@ function makeBleService(transport: ReturnType<typeof makeSpyTransport>): BleServ
 
 const PERIPHERAL_ID = 'AA:BB:CC:DD:EE:FF';
 
+// connect() without credentials logs a warning — suppress in integration tests
+// (dev-mode path is covered in packages/ble-protocol/__tests__/auth.test.ts)
+beforeAll(() => {
+  jest.spyOn(console, 'warn').mockImplementation(() => {});
+});
+afterAll(() => {
+  jest.restoreAllMocks();
+});
+
 beforeEach(() => {
   jest.useFakeTimers();
   useBikeStore.setState({
@@ -98,7 +107,7 @@ describe('Scenario 1 — full connection sequence', () => {
     const svc = makeBleService(transport);
 
     const connectPromise = svc.connect(PERIPHERAL_ID);
-    await jest.advanceTimersByTimeAsync(200); // past 100ms post-connect delay
+    await jest.advanceTimersByTimeAsync(2200); // past 100ms post-connect + 2000ms post-MTU delays
     await connectPromise;
 
     const connectOrder = transport.connect.mock.invocationCallOrder[0]!;
@@ -113,7 +122,7 @@ describe('Scenario 1 — full connection sequence', () => {
     const svc = makeBleService(transport);
 
     const connectPromise = svc.connect(PERIPHERAL_ID);
-    await jest.advanceTimersByTimeAsync(200);
+    await jest.advanceTimersByTimeAsync(2200);
     await connectPromise;
 
     expect(transport.subscribe).toHaveBeenCalledWith(
@@ -129,7 +138,7 @@ describe('Scenario 1 — full connection sequence', () => {
     const svc = makeBleService(transport);
 
     const connectPromise = svc.connect(PERIPHERAL_ID);
-    await jest.advanceTimersByTimeAsync(200);
+    await jest.advanceTimersByTimeAsync(2200);
     await connectPromise;
 
     expect(transport.requestMtu).toHaveBeenCalledWith(PERIPHERAL_ID, 185);
@@ -140,7 +149,7 @@ describe('Scenario 1 — full connection sequence', () => {
     const svc = makeBleService(transport);
 
     const connectPromise = svc.connect(PERIPHERAL_ID);
-    await jest.advanceTimersByTimeAsync(200);
+    await jest.advanceTimersByTimeAsync(2200);
     await connectPromise;
 
     expect(useBikeStore.getState().connectionState).toBe('connected');
@@ -158,7 +167,7 @@ describe('Scenario 1 — full connection sequence', () => {
     });
 
     const connectPromise = svc.connect(PERIPHERAL_ID);
-    await jest.advanceTimersByTimeAsync(200);
+    await jest.advanceTimersByTimeAsync(2200);
     await connectPromise;
 
     expect(states).toContain('connecting');
@@ -173,7 +182,7 @@ describe('Scenario 3 — BLE commands route to CHAR_WRITE', () => {
     const transport = makeSpyTransport();
     const svc = makeBleService(transport);
     const p = svc.connect(PERIPHERAL_ID);
-    await jest.advanceTimersByTimeAsync(200);
+    await jest.advanceTimersByTimeAsync(2200);
     await p;
     return { transport, svc };
   }
@@ -220,7 +229,7 @@ describe('Scenario 4 — disconnect and manual reconnect', () => {
     const svc = makeBleService(transport);
 
     const p = svc.connect(PERIPHERAL_ID);
-    await jest.advanceTimersByTimeAsync(200);
+    await jest.advanceTimersByTimeAsync(2200);
     await p;
     expect(useBikeStore.getState().connectionState).toBe('connected');
 
@@ -235,7 +244,7 @@ describe('Scenario 4 — disconnect and manual reconnect', () => {
     const svc = makeBleService(transport);
 
     const p = svc.connect(PERIPHERAL_ID);
-    await jest.advanceTimersByTimeAsync(200);
+    await jest.advanceTimersByTimeAsync(2200);
     await p;
 
     svc.disconnect();
@@ -249,7 +258,7 @@ describe('Scenario 4 — disconnect and manual reconnect', () => {
 
     // First connect
     let p = svc.connect(PERIPHERAL_ID);
-    await jest.advanceTimersByTimeAsync(200);
+    await jest.advanceTimersByTimeAsync(2200);
     await p;
 
     svc.disconnect();
@@ -261,7 +270,7 @@ describe('Scenario 4 — disconnect and manual reconnect', () => {
 
     // Manual reconnect succeeds
     p = svc.connect(PERIPHERAL_ID);
-    await jest.advanceTimersByTimeAsync(200);
+    await jest.advanceTimersByTimeAsync(2200);
     await p;
     expect(useBikeStore.getState().connectionState).toBe('connected');
     expect(transport.connect).toHaveBeenCalledTimes(2);
@@ -326,7 +335,7 @@ describe('Scenario 2 — KeepAlive watchdog integration', () => {
     const svc = makeBleService(transport);
 
     const p = svc.connect(PERIPHERAL_ID);
-    await jest.advanceTimersByTimeAsync(200);
+    await jest.advanceTimersByTimeAsync(2200);
     await p;
     expect(useBikeStore.getState().connectionState).toBe('connected');
 

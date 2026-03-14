@@ -2,8 +2,8 @@
  * TBox BLE keep-alive manager.
  *
  * Sends Heartbeat{ping:1} via control code 0x67 every 2000ms.
- * Watchdog resets on ACK — OEM code suggests 0xEC (KEEP_ALIVE_RESULT) but 0xE7 is also
- * plausible; to be confirmed with live BLE traffic.
+ * Watchdog resets on incoming 0xEC (KEEP_ALIVE_RESULT). Confirmed: DecoderData.KEEP_ALIVE = -20 = 0xEC
+ * (source: DecoderData.java). 0xE7 is LOCK_RESULT — not the heartbeat ACK.
  * If no ACK arrives within 4000ms, calls onDisconnect() and stops.
  *
  * Source: BleConstant.java (CONNECT_KEEP_LIVE_TIME=2000, CONNECT_KEEP_ALIVE_TIME_OUT=4000)
@@ -70,7 +70,8 @@ export class KeepAliveManager {
   }
 
   /**
-   * Notify the manager that an ACK was received (incoming 0xEC or 0xE7 — TBD from traffic).
+   * Notify the manager that an ACK was received (incoming 0xEC — KEEP_ALIVE_RESULT confirmed).
+   * Call this from the ResponseRouter handler for ControlCode.KEEP_ALIVE_RESULT.
    * Resets the 4000ms watchdog.
    */
   notifyAck(): void {

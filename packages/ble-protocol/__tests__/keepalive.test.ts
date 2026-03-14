@@ -84,4 +84,27 @@ describe('KeepAliveManager', () => {
     jest.advanceTimersByTime(5000); // watchdog would have fired
     expect(disconnectCalled).toBe(false);
   });
+
+  // ── ACK control code confirmation (DecoderData.KEEP_ALIVE = -20 = 0xEC) ──────
+
+  test('notifyAck() resets watchdog (0xEC path)', () => {
+    // Simulates: ResponseRouter receives 0xEC → calls manager.notifyAck()
+    manager.start(); // watchdog fires at t=4000
+
+    jest.advanceTimersByTime(3000);
+    manager.notifyAck(); // ACK at t=3000 → watchdog reset to t=7000
+
+    jest.advanceTimersByTime(3999); // advance to t=6999 — watchdog at t=7000 not fired
+    expect(disconnectCalled).toBe(false);
+    manager.stop();
+  });
+
+  test('watchdog fires if 0xE7 arrives but notifyAck() is NOT called', () => {
+    // 0xE7 (LOCK_RESULT) is NOT the heartbeat ACK — notifyAck must not be called for it.
+    // This test asserts that without notifyAck(), the watchdog fires after 4000ms.
+    manager.start(); // watchdog fires at t=4000
+    // Simulate 0xE7 frame arriving but handler correctly does NOT call notifyAck()
+    jest.advanceTimersByTime(4000);
+    expect(disconnectCalled).toBe(true);
+  });
 });
