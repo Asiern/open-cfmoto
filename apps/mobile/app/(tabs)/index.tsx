@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useBikeStore } from '../../src/stores/bike.store';
 import { useRideStore } from '../../src/stores/ride.store';
@@ -40,7 +40,7 @@ export default function DashboardScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>OpenCFMoto</Text>
         <TouchableOpacity onPress={() => router.push('/scanner')}>
@@ -100,7 +100,7 @@ export default function DashboardScreen() {
         </TouchableOpacity>
         {authMessage ? <Text style={styles.cloudMessage}>{authMessage}</Text> : null}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
