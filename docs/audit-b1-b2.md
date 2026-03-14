@@ -223,3 +223,130 @@ El principal riesgo pendiente es el wiring del `ResponseRouter` con los stores (
 ### Gap pendiente (hardware)
 
 El `ResponseRouter` en `ble.service.ts` aún no tiene handlers para `0xEC`/`0xE7` que disparen `useBikeStore.recordHeartbeatAck()`. El wiring completo requiere confirmar el ACK code con tráfico BLE real (punto 1 de la lista de validación hardware).
+
+---
+
+## Bloque 3 — Auditoría (2026-03-14)
+
+**[estado: listo para Bloque 4 — con dos issues menores documentados, ninguno bloqueante]**
+
+---
+
+### Por archivo
+
+#### `apps/mobile/src/providers/CFMotoProvider.tsx`
+
+**Estado: ⚠️**
+
+| Línea | Hallazgo | Severidad |
+|-------|----------|-----------|
+| 60-74 | **Race condition en unmount durante init**: `runBleInit` se lanza con `.catch()` sin `await`. Si el componente se desmonta mientras `requestBlePermissions` está pendiente (el prompt de Android no se ha resuelto), la cleanup function corre (`cancelled = true; bleService.destroy()`), pero cuando `requestBlePermissions` resuelve a true, `runBleInit` llama igualmente a `bleService.initialize()` — dejando el servicio inicializado tras el unmount. La variable `cancelled` guarda el `.catch` pero no el path de `initialize()`. | Menor |
+| 90-98 | Error de contexto descriptivo: mensaje con nombre del provider y hint de fix. ✅ | — |
+| 35-43 | Secuencia permissions → initialize correcta. ✅ | — |
+| 67-70 | `bleService.destroy()` en cleanup de `useEffect([])` — cubre todos los paths de unmount (React garantiza que el cleanup siempre corre). ✅ | — |
+| 35 | iOS: `Platform.OS === 'android'` evita `requestBlePermissions` en iOS. ✅ | — |
+
+**Acción recomendada:** Añadir un flag `let destroyed = false` en el `useEffect` y guardarlo en la closure de `runBleInit` para evitar `initialize()` tras `destroy()`.
+
+---
+
+#### `apps/mobile/src/hooks/index.ts`
+
+**Estado: ⚠️**
+
+| Línea | Hallazgo | Severidad |
+|-------|----------|-----------|
+| 256-268 | **`useRideRecording`: stale closure en `isRecording`**. `isRecording` se lee dentro del `useEffect` pero no está en el array de dependencias (`[connectionState]` solamente). En React 18 concurrent mode, si `connectionState` cambia y el render previo de `isRecording` es stale, el effect puede evaluar `!isRecording` con valor antiguo. En práctica es improbable que cause doble-arranque porque `connectionState` solo cambia externamente (BLE), pero viola las reglas de hooks. | Menor |
+| 111-113 | `recordCommandSent` llamado ANTES de que `sendCommand` complete. Si la escritura BLE falla, el comando queda en historial con `ackedAt: null`. Comportamiento aceptable pero no documentado. | Info |
+| 163-186 | Todos los builders usan `commands/index.ts` (lock, unlock, findCar, setIndicators, setUnits, setSpeedLimit). ✅ | — |
+| 55-61, 73 | `TripSummary` sin campos de telemetría (speed/RPM/fuel). ✅ | — |
+| — | Sin `any` en ningún hook. ✅ | — |
+| 270-278 | `finalizeTrip()` retorna null si `deviceId === null \|\| startedAt === null` — protege contra llamada prematura. ✅ | — |
+| 275 | `endedAt = endedAtRef.current ?? Date.now()` — funciona si se llama mientras recording está activo (antes del disconnect). ✅ | — |
+
+---
+
+#### `apps/mobile/src/__tests__/provider.test.tsx`
+
+**Estado: ⚠️**
+
+| Línea | Hallazgo | Severidad |
+|-------|----------|-----------|
+| 103-109 | **Falso positivo en test de unmount**: el test crea una closure local `() => bleService.destroy()` y la ejecuta directamente. No testea el `useEffect` cleanup real del provider — pasaría aunque el provider llamase `bleService.scan()` en lugar de `destroy()`. Sin React renderer en el entorno de test, no es posible testear mount/unmount sin refactor. | Menor |
+| 31-36 | Mock de `Platform` via mutación del objeto: patrón correcto con `jest.mock` hoisted. ✅ | — |
+| 10-20 | Mock de `bleService` cubre todos los métodos públicos: `initialize`, `destroy`, `scan`, `connect`, `disconnect`, `sendCommand`. ✅ | — |
+| 81-95 | iOS: `Platform.OS = 'ios'` antes de `runBleInit` → `requestBlePermissions` NO llamado → `bleService.initialize` llamado. Test funciona porque mutamos el objeto mockeado. ✅ | — |
+
+---
+
+#### `apps/mobile/src/__tests__/hooks.test.ts`
+
+**Estado: ⚠️**
+
+| Línea | Hallazgo | Severidad |
+|-------|----------|-----------|
+| 86-94 | **Tests de `isConnected` de bajo valor**: comprueban `useBikeStore.getState().connectionState === 'connected'` — no testean `useCFMoto` en absoluto. Pasarían aunque `isConnected` en el hook estuviese hardcodeado a `false`. | Info |
+| 116-143 | `findCar`: test correcto — verifica que el frame de `findCar('horn')` llega a `sendCommand` con el ControlCode esperado. ✅ | — |
+| 165-173 | `calcIsAlive` con timestamps inyectables: tests de boundary deterministas. ✅ | — |
+| 181-186 | `buildTripSummary` con timestamps fijos (1000, 4000): `durationMs = 3000` determinista. ✅ | — |
+| 199-216 | `persistTrip` con storage inyectado (plain Map): verifica key y JSON serializado. ✅ | — |
+
+---
+
+#### `apps/mobile/src/services/ble.service.ts`
+
+**Estado: ✅**
+
+- `destroy()` llama a `disconnect()` antes de nullar `protocol`/`transport` — orden correcto. ✅
+- `sendCommand()` lanza si `protocol === null` — falla rápido, mensaje descriptivo. ✅
+- `BleService` exportada como clase — permite tipar el contexto. ✅
+
+---
+
+#### `packages/ble-protocol/src/commands/index.ts` — TD-01
+
+**Estado: ✅**
+
+`heartbeat()` eliminado. Comentario explícito apunta a `KeepAliveManager`. La spec decía "useBikeCommands.heartbeat re-exporta desde keepalive.ts" — implementado como "heartbeat no expuesto en useBikeCommands" (más correcto: el heartbeat es automático, no debería ser un comando de usuario). Desviación intencional y justificada.
+
+---
+
+### Deuda técnica actualizada
+
+| ID | Archivo | Descripción | Estado | Prioridad |
+|----|---------|-------------|--------|-----------|
+| TD-01 | `commands/index.ts` | Heartbeat duplicado en keepalive.ts + commands. | ✅ **RESUELTO** — `heartbeat()` eliminado de commands | — |
+| TD-02 | `auth.ts` | Conversión Uint8Array→string no documentada para `step2._codec`. | ✅ **RESUELTO** — JSDoc añadido con TextDecoder | — |
+| TD-03 | `mock-protocol.ts` | Telemetría sintética no representa el protocolo real. | ✅ **RESUELTO** — comentario MOCK ONLY añadido | — |
+| TD-04 | `CFMotoProvider.tsx:60-74` | Race condition: `bleService.initialize()` puede correr tras `destroy()` si el componente se desmonta durante el prompt de permisos Android. | 🔴 **NUEVO** — fix recomendado antes de prod | Baja (improbable en uso real) |
+| TD-05 | `hooks/index.ts:256-268` | `isRecording` en stale closure dentro de `useEffect([connectionState])`. | ⚠️ **NUEVO** — viola exhaustive-deps; baja probabilidad de bug real | Baja |
+| TD-06 | `ble.service.ts` / `hooks/index.ts` | `recordCommandAcked` nunca es llamado por ningún hook. Cuando el bike responde con un ACK, nadie cierra el ciclo en `commandHistory`. Requiere handlers en ResponseRouter (post-hardware). | ⚠️ **NUEVO** — scope de wiring post-hardware | Media |
+| TD-07 | `__tests__/provider.test.tsx:103-109` | Test de unmount es falso positivo: no testea el cleanup real del `useEffect`. Sin renderer React no es resoluble en node env. | ⚠️ **NUEVO** — aceptable como limitación de la estrategia de tests | Info |
+
+---
+
+### Qué falta validar con hardware
+
+1. **ACK del keep-alive**: ¿0xEC, 0xE7, o ambos? Necesario para wiring `ResponseRouter` → `recordHeartbeatAck()` y para `recordCommandAcked()` (TD-06). **Más crítico que antes**: ahora también bloquea el cierre de `commandHistory`.
+
+2. **Secuencia de auth**: `AuthPackage.info = hex_decode(encryptValue)` + encoding correcto de `TboxRandomNum.codec` → `RandomNum.sn`. `auth.ts` sigue en stub.
+
+3. **Delay de 100ms post-connect**: Confirmar necesidad en hardware real.
+
+4. **Frame de lock/unlock**: Estructura interna del payload encriptado no confirmada. `lock()`/`unlock()` toman `Uint8Array` opaco — la construcción del proto `Lock { type, state }` + encriptación no está implementada ni documentada.
+
+5. **Campos DISPLAY_UNITS (0x69)**: Valores de enum KM=1, MILE=2, CELSIUS=1, FAHRENHEIT=2 inferidos del proto. Confirmar con tráfico real.
+
+6. **MTU efectivo**: Confirmar que el bike acepta MTU=185.
+
+7. **[NUEVO] `connectionState` vs estado real del bike**: `ble.service.ts` pone `connectionState = 'connected'` cuando `protocol.connect()` resuelve (antes de auth). Tras auth `onDisconnect` del keepalive cambiaría el estado, pero `setConnectionState` no está conectado al `onDisconnect` del `KeepAliveManager`. Con hardware real, el estado visible al usuario podría ser 'connected' aunque el keepalive haya fallado.
+
+---
+
+### Veredicto
+
+**Bloque 4 directo — sin fixes bloqueantes.**
+
+El Bloque 3 es sólido para continuar. Los dos issues nuevos (TD-04 race condition, TD-05 stale closure) son improbables en el flujo de uso real y no afectan la correctitud en escenarios normales. La API pública (provider + hooks) está completa y correctamente tipada.
+
+El gap de wiring más importante (TD-06: `recordCommandAcked` nunca llamado) es intrínsecamente post-hardware: hasta confirmar los ACK codes con tráfico real, no hay nada que conectar. La arquitectura lo soporta sin cambios.
