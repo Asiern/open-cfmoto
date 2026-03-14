@@ -46,13 +46,10 @@ accept a raw `encryptedPayload: Uint8Array` and wrap it in a `Lock` protobuf. Th
 AES-256/ECB/PKCS7 encryption using the cloud-supplied key has not been validated end-to-end.
 
 **Validate:**
-- Complete the `AuthFlow` implementation (currently `NotImplementedError`)
 - Obtain `VehicleNowInfoResp.encryptInfo.key` from the cloud API
 - Send a lock command and confirm the bike responds with `LOCK_RESULT` (`0xE7`) `result=0`
 
 **Code to update:**
-- `packages/ble-protocol/src/auth.ts` — replace `NotImplementedError` stub with real
-  AES-256 implementation
 - `apps/mobile/src/services/ble.service.ts` — wire auth into connect sequence
 
 ---
@@ -75,6 +72,24 @@ and use them in BLE auth. This must be validated end-to-end against real hardwar
 - Burp export `tools/apk-analysis/mitm-logs/full-history` confirms cloud login/signing,
   but only in virtual vehicle mode (`vehicleId=-1`), where `encryptInfo` is `{}`.
 - This item remains pending until a capture with real VIN-linked vehicle is collected.
+
+---
+
+### 2.2 MotoPlay channel boundary (projection vs telemetry)
+
+**Uncertainty:** Need final hardware-level confirmation that MotoPlay traffic is not carrying
+bike telemetry (RPM/speed/fuel) for MT450.
+
+**Validate:**
+- Run MotoPlay session with navigation active
+- Correlate:
+  - BLE traffic (HCI snoop)
+  - cloud vehicle telemetry updates
+  - MotoPlay-related traffic/logs
+- Confirm bike telemetry remains cloud/TBox-driven and not MotoPlay-driven
+
+**Current status (static APK):**
+- MotoPlay classes reviewed indicate projection/navigation state, not bike telemetry payloads.
 
 ---
 

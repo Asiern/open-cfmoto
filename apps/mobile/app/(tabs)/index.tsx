@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { UserVehicle } from '@open-cfmoto/cloud-client';
 import { useBikeStore } from '../../src/stores/bike.store';
 import { useRideStore } from '../../src/stores/ride.store';
 import { MetricCard } from '../../src/components/MetricCard';
@@ -15,6 +16,9 @@ export default function DashboardScreen() {
   const [password, setPassword] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [vehiclesBusy, setVehiclesBusy] = useState(false);
+  const [vehiclesMessage, setVehiclesMessage] = useState<string | null>(null);
+  const [vehicles, setVehicles] = useState<UserVehicle[]>([]);
 
   async function handleCloudLoginTest() {
     if (!username.trim() || !password.trim()) {
@@ -26,6 +30,8 @@ export default function DashboardScreen() {
     try {
       const result = await cloudAuthService.login(username.trim(), password);
       const tokenPreview = result.token.slice(0, 8);
+      setVehicles([]);
+      setVehiclesMessage(null);
       setAuthMessage(
         `Cloud login OK (userId: ${result.userId ?? 'n/a'}, token: ${tokenPreview}...)`,
       );
@@ -36,6 +42,22 @@ export default function DashboardScreen() {
       // Never retain password in UI state after attempting login.
       setPassword('');
       setAuthBusy(false);
+    }
+  }
+
+  async function handleLoadVehicles() {
+    setVehiclesBusy(true);
+    setVehiclesMessage(null);
+    try {
+      const result = await cloudAuthService.getUserVehicles(1);
+      setVehicles(result);
+      setVehiclesMessage(`Vehicles loaded: ${result.length}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown vehicle list error';
+      setVehicles([]);
+      setVehiclesMessage(`Load vehicles failed: ${message}`);
+    } finally {
+      setVehiclesBusy(false);
     }
   }
 
@@ -98,7 +120,30 @@ export default function DashboardScreen() {
             <Text style={styles.loginButtonText}>Test Cloud Login</Text>
           )}
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.vehiclesButton, (authBusy || vehiclesBusy) && styles.loginButtonDisabled]}
+          disabled={authBusy || vehiclesBusy}
+          onPress={handleLoadVehicles}
+        >
+          {vehiclesBusy ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.loginButtonText}>Load My Vehicles</Text>
+          )}
+        </TouchableOpacity>
         {authMessage ? <Text style={styles.cloudMessage}>{authMessage}</Text> : null}
+        {vehiclesMessage ? <Text style={styles.cloudMessage}>{vehiclesMessage}</Text> : null}
+        {vehicles.map((vehicle) => (
+          <View
+            key={`${String(vehicle.vehicleId ?? 'unknown')}-${String(vehicle.vin ?? '')}`}
+            style={styles.vehicleRow}
+          >
+            <Text style={styles.vehicleName}>{String(vehicle.vehicleName ?? 'Unnamed vehicle')}</Text>
+            <Text style={styles.vehicleMeta}>
+              {`id=${String(vehicle.vehicleId ?? 'n/a')} · vin=${String(vehicle.vin ?? 'n/a')}`}
+            </Text>
+          </View>
+        ))}
       </View>
     </ScrollView>
   );
@@ -143,9 +188,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 42,
   },
+  vehiclesButton: {
+    backgroundColor: '#0891b2',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 42,
+  },
   loginButtonDisabled: {
     opacity: 0.6,
   },
   loginButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   cloudMessage: { color: '#d4d4d4', fontSize: 12 },
+  vehicleRow: {
+    marginTop: 8,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#232323',
+  },
+  vehicleName: { color: '#f5f5f5', fontSize: 14, fontWeight: '600' },
+  vehicleMeta: { color: '#a3a3a3', fontSize: 12, marginTop: 2 },
 });

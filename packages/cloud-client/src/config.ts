@@ -5,6 +5,7 @@ export const CLOUD_CONFIG = {
   ENDPOINTS: {
     LOGIN: '/fuel-user/serveruser/app/auth/user/login_by_idcard',
     VEHICLE_BY_ID: '/fuel-vehicle/servervehicle/app/vehicle',
+    VEHICLES_MINE: '/fuel-vehicle/servervehicle/app/vehicle/mine',
   },
   SIGN_TYPE: '0',
   NONCE_LENGTH: 16,

@@ -44,6 +44,29 @@ Real-time telemetry fields available from the **cloud API** (not BLE):
 
 ---
 
+## 1.1 MotoPlay Clarification (Map/Projection vs Bike Telemetry)
+
+From JADX analysis of MotoPlay classes:
+
+- `com.cfmoto.cfmotointernational.module.vehicle.motoplay.VehicleState`
+- `com.cfmoto.cfmotointernational.module.vehicle.motoplay.SystemState`
+- `com.cfmoto.cfmotointernational.module.vehicle.motoplay.MotoPlayTrackInfo`
+- `com.cfmoto.motoplay.utils.ScreenCastManager`
+- `com.cfmoto.motoplay.service.NavInfoReceivingService`
+
+Current evidence indicates MotoPlay is a projection/navigation channel (phone ↔ display),
+not the source of RPM/speed/fuel telemetry for MT450.
+
+- `VehicleState` tracks connection-level fields (VIN, QR info, motoplay type/flag).
+- `SystemState` tracks phone/system state (network, GPS, hotspot, top activity).
+- `MotoPlayTrackInfo` carries navigation/projection context.
+- No bike telemetry fields (RPM, fuel, engine temp) were found in this path.
+
+Conclusion:
+- Bike telemetry shown in app is cloud-backed (TBox → cloud → app), not transported through MotoPlay.
+
+---
+
 ## 2. GATT UUIDs (CONFIRMED — `BleConstant.java`)
 
 | Role | UUID |
@@ -118,9 +141,10 @@ CRC is NOT XOR — it is byte addition modulo 256.
 | 0x8B | -117         | `RECHARGE`        | `Meter.CommandResult`   | Recharge result |
 | 0x8C | -116         | `OPERATE_4G_COMPLEX` | `Meter.CommandResult2` | Complex 4G result |
 | 0x95 | -107         | `PATCH_OBTAIN_INFO` | `Meter.PatchObtainInfoResult` | Charger info (chargerConnState + chargState) |
-| 0xE7 | -25          | `LockControll`    | `Meter.CommandResult`   | Lock/unlock/powerOn/powerOff + heartbeat ACK |
+| 0xE7 | -25          | `LockControll`    | `Meter.CommandResult`   | Lock/unlock/powerOn/powerOff ACK |
 | 0xEA | -22          | `FindCar`         | `Meter.CommandResult`   | Find car result |
 | 0xEB | -21          | `LightControll`   | `Meter.CommandResult`   | Light control result |
+| 0xEC | -20          | `KEEP_ALIVE`      | `Meter.CommandResult`   | Keep-alive ACK (`DecoderData.KEEP_ALIVE`) |
 | 0xF1 | -15          | `CHARGE_OPT`      | —                       | Charge opt result |
 | 0xF9 | -7           | `KL15`            | `Meter.CommandResult`   | KL15 result |
 

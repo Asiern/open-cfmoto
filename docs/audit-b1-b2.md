@@ -4,6 +4,10 @@ Fecha: 2026-03-14
 Scope: `packages/ble-protocol/` (Block 1) + `apps/mobile/src/stores/` (Block 2)
 Metodología: Contraste de cada archivo contra `tools/apk-analysis/findings/` y `docs/protocol.md`, análisis de consistencia interna, y revisión de cobertura de tests.
 
+> Nota: este documento es una foto de auditoría por bloques. Algunas observaciones aquí ya fueron
+> resueltas después (por ejemplo, `AuthFlow` ya está implementado). Para estado vigente usar:
+> `docs/auth-protocol.md`, `docs/cloud-auth.md`, `docs/test-coverage.md` y `docs/hardware-validation.md`.
+
 ---
 
 ## Resumen ejecutivo

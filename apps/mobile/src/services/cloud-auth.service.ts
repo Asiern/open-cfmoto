@@ -1,4 +1,4 @@
-import { CloudAuthClient } from '@open-cfmoto/cloud-client';
+import { CloudAuthClient, UserVehicle, VehicleClient } from '@open-cfmoto/cloud-client';
 
 export interface CloudLoginResult {
   token: string;
@@ -6,14 +6,27 @@ export interface CloudLoginResult {
 }
 
 class CloudAuthService {
-  private readonly client = new CloudAuthClient();
+  private readonly authClient = new CloudAuthClient();
+  private readonly vehicleClient = new VehicleClient();
+  private token: string | null = null;
+  private userId: string | null = null;
 
   async login(username: string, password: string): Promise<CloudLoginResult> {
-    const token = await this.client.login(username, password);
+    const token = await this.authClient.login(username, password);
+    const userId = this.authClient.getUserId();
+    this.token = token;
+    this.userId = userId;
     return {
       token,
-      userId: this.client.getUserId(),
+      userId,
     };
+  }
+
+  async getUserVehicles(position = 1): Promise<UserVehicle[]> {
+    if (!this.token) {
+      throw new Error('Cloud session not initialized. Run login() first.');
+    }
+    return this.vehicleClient.getUserVehicles(this.token, this.userId, position);
   }
 }
 

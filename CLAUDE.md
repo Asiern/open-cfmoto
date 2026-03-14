@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-Open-source alternative to the CFMoto Ride Android app (com.cfmoto.cfmotointernational). Targets CFMoto 450 series (MT/SR/NK). MVP: BLE bike connection + GPS trip recording. The BLE protocol has been reverse-engineered from the APK — core values in `packages/ble-protocol/` are now **CONFIRMED** from static analysis of `jadx` decompilation. See `tools/apk-analysis/findings/` for full documentation.
+Open-source alternative to the CFMoto Ride Android app (com.cfmoto.cfmotointernational). Targets CFMoto 450 series (MT/SR/NK). MVP: BLE bike connection + GPS trip recording. The BLE protocol has been reverse-engineered from the APK — core values in `packages/ble-protocol/` are now **CONFIRMED** from static analysis of `jadx` decompilation and dynamic MitM capture. See `tools/apk-analysis/findings/` and `docs/cloud-auth.md` for full documentation.
 
 ## Commands
 
@@ -42,16 +42,21 @@ eas build --platform android --profile preview       # preview APK
 
 ```
 packages/ble-protocol/   Pure TypeScript, zero RN deps — runs in Node/Jest
+packages/cloud-client/   Pure TypeScript cloud API client (login, vehicle lookup, signing)
 apps/mobile/             Expo app (custom dev client), React Native
-tools/apk-analysis/      RE tooling: jadx output, btsnoop logs, findings docs
+tools/apk-analysis/      RE tooling: jadx output, btsnoop logs, Burp exports, findings docs
+docs/                    Protocol docs: cloud-auth.md, auth-protocol.md, protocol.md
 ```
 
-### BLE Data Flow
+### Data Flow
 
 ```
+CloudAuthClient (packages/cloud-client/)
+  → login() + getEncryptInfo(vehicleId)   # fetches encryptValue + key from cloud
+  ↓
 react-native-ble-plx
   → RNBleTransport (apps/mobile/src/services/ble-transport.adapter.ts)
-  → CFMoto450Protocol / MockBikeProtocol  (packages/ble-protocol/)
+  → CFMoto450Protocol (packages/ble-protocol/) ← cloudCredentials passed here
   → bleService singleton  (apps/mobile/src/services/ble.service.ts)
   → Zustand stores  (bike.store, ride.store, settings.store)
   → React screens via hooks
@@ -59,13 +64,20 @@ react-native-ble-plx
 
 The `BleTransport` interface in `packages/ble-protocol/src/types.ts` is the seam between hardware and protocol. `RNBleTransport` implements it with `react-native-ble-plx`; `MockBleTransport`/`MockBikeProtocol` implement it with synthetic data. `bleService.initialize(useMock)` selects which path to use — `RNBleTransport` is lazily `require()`d so mock mode works without BLE hardware.
 
+`CFMoto450Protocol.connect(peripheralId, cloudCredentials?)` — when `cloudCredentials` are provided it calls `CloudAuthClient.login()` → `VehicleClient.getEncryptInfo()` → BLE auth (0x5A–0x5D). Without credentials it skips auth (dev/mock mode, logs a warning).
+
 ### Key Files
 
 - `packages/ble-protocol/src/types.ts` — All core interfaces (`BikeData`, `BleTransport`, `IBikeProtocol`). Lock these down before changing anything else.
 - `packages/ble-protocol/src/uuids.ts` — Single source of truth for GATT UUIDs. Values updated with **CONFIRMED** UUIDs from APK RE.
 - `packages/ble-protocol/src/codec.ts` — Packet encode/decode. **Confirmed format**: `[0xAB, 0xCD, controlCode, lenLo, lenHi, ...protobuf_payload, checksum_byte_sum, 0xCF]`. Checksum is byte-addition sum (NOT XOR) of bytes[2..end-2]. Payload is Protocol Buffers.
+- `packages/cloud-client/src/config.ts` — Cloud API constants: base URL, endpoints, hardcoded APPID/APPSECRET from APK.
+- `packages/cloud-client/src/auth.ts` — `CloudAuthClient`: login, token storage, signing.
+- `packages/cloud-client/src/vehicle.ts` — `VehicleClient`: `getEncryptInfo()`, `getUserVehicles()`.
+- `packages/cloud-client/src/signing.ts` — Request signing: `MD5(SHA1(body + params + APPSECRET))`.
 - `apps/mobile/metro.config.js` — Critical monorepo Metro config (`watchFolders` + `nodeModulesPaths`). Breaking this means nothing builds.
 - `apps/mobile/src/services/ble.service.ts` — BLE singleton that bridges protocol → Zustand stores.
+- `apps/mobile/src/services/cloud-auth.service.ts` — Mobile-side cloud auth integration.
 
 ### SQLite Schema
 
@@ -106,13 +118,25 @@ All values confirmed from `jadx` decompilation of `com.cfmoto.cfmotointernationa
 | `0x79` | KL15 (ignition) |
 
 **Authentication** (source: `BleModel.java`, `AES256EncryptionUtil.java`):
-3-step challenge-response: App→Bike `AuthPackage` (0x5A) → Bike→App random challenge (0x5B) → App decrypts with AES-256/ECB/PKCS7 (BouncyCastle) using server-supplied key → App→Bike `RandomNum` (0x5C) → Bike confirms (0x5D). Keys (`encryptValue`, `key`) come from cloud API, not hardcoded.
+3-step challenge-response: App→Bike `AuthPackage` (0x5A) → Bike→App random challenge (0x5B) → App decrypts with AES-256/ECB/PKCS7 (BouncyCastle) using server-supplied key → App→Bike `RandomNum` (0x5C) → Bike confirms (0x5D). Keys (`encryptValue`, `key`) come from cloud API endpoint `GET /fuel-vehicle/servervehicle/app/vehicle?vehicleId=<id>` → `data.encryptInfo`.
 
 **Connection sequence**: Scan by MAC → GATT connect → enable notify → set MTU 185 → auth (3 steps) → keep-alive every 2s (4s timeout). Auto-unlock triggers at RSSI > -70 dBm.
 
+### Confirmed Cloud API (tapi-flkf.cfmoto-oversea.com)
+
+Full docs in `docs/cloud-auth.md`. Key facts for implementation:
+
+- **No certificate pinning** — TrustManager accepts everything, MitM works out of the box.
+- **Base URL**: `https://tapi.cfmoto-oversea.com/v1.0/` (regional subdomain determined at login, e.g. `tapi-flkf.cfmoto-oversea.com` for EU).
+- **Login**: `POST /fuel-user/serveruser/app/auth/user/login_by_idcard` — `password` as MD5 hex, token in `data.tokenInfo.accessToken`, TTL ≈ 100 days.
+- **BLE keys**: `GET /fuel-vehicle/servervehicle/app/vehicle?vehicleId=<id>` → `data.encryptInfo.{encryptValue, key, iv}`.
+- **Vehicle list**: `GET /fuel-vehicle/servervehicle/app/vehicle/mine?position=1` → `data[]`.
+- **Request signing** (every request): `MD5(SHA1(body + "appId=rRrIs3ID&nonce=<16chars>&timestamp=<ms>" + APPSECRET))` — credentials hardcoded in APK (`APPID=rRrIs3ID`, `APPSECRET=6c1936f85ecb23508c02ceb7a6e3fd0e33eb8bd2`).
+- **Headers**: `Authorization: Bearer <token>`, `user_id`, `lang`, `ZoneId`, `Cfmoto-X-Sign`, `Cfmoto-X-Param`, `Cfmoto-X-Sign-Type: 0`, `appId`, `nonce`, `signature`, `timestamp`.
+
 ### Reverse Engineering Workflow
 
-Discovered protocol info goes in `tools/apk-analysis/findings/` (living docs) **and** must be reflected in `packages/ble-protocol/src/uuids.ts` and `codec.ts`.
+Discovered protocol info goes in `tools/apk-analysis/findings/` (living docs) **and** must be reflected in `packages/ble-protocol/src/uuids.ts` and `codec.ts`. Cloud API findings go in `docs/cloud-auth.md`.
 
 Static analysis:
 ```bash
@@ -120,9 +144,15 @@ jadx -d tools/apk-analysis/jadx-output/ --deobf tools/apk-analysis/apk/<apk>
 tools/apk-analysis/scripts/extract-uuids.sh   # grep UUIDs from jadx output
 ```
 
+Dynamic HTTP MitM (no cert pinning — plain mitmproxy/Burp works):
+- Configure Android WiFi proxy → mitmproxy/Burp on port 8080.
+- No Frida or APK patch needed. Works on Android 14 (TrustManager bypass in APK).
+- Export Burp history as XML → `tools/apk-analysis/mitm-logs/` (gitignored, sanitize before commit).
+- If app ignores system proxy: use `tools/apk-analysis/frida/burp-override.js` to force it.
+
 Dynamic BLE sniffing: enable HCI snoop log on device, run OEM app, `adb pull /data/misc/bluetooth/logs/btsnoop_hci.log`, open in Wireshark or run `tools/apk-analysis/scripts/decode-btsnoop.py`.
 
-Drop APK in `tools/apk-analysis/apk/` (gitignored). jadx output and snoop logs are also gitignored.
+Drop APK in `tools/apk-analysis/apk/` (gitignored). jadx output, snoop logs, and mitm-logs are also gitignored.
 
 ### Android Requirements
 

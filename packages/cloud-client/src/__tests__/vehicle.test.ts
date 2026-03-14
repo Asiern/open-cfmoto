@@ -68,4 +68,53 @@ describe('VehicleClient', () => {
     expect(headers.get('Authorization')).toBe('Bearer tok-2');
     expect(fetchMock.mock.calls[0]?.[0]).toContain('/fuel-vehicle/servervehicle/app/vehicle?vehicleId=veh-2');
   });
+
+  test('getUserVehicles() devuelve lista de vehiculos del usuario', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        code: '0',
+        data: [
+          {
+            vehicleId: 'veh-1',
+            vehicleName: 'Demo',
+            vin: 'LCEPEVLD8N8888888',
+            virtualFlag: '1',
+          },
+        ],
+      }),
+    } as Response);
+
+    const client = new VehicleClient('https://example.test/v1.0');
+    await expect(client.getUserVehicles('tok-3', 'user-9')).resolves.toEqual([
+      expect.objectContaining({
+        vehicleId: 'veh-1',
+        vehicleName: 'Demo',
+      }),
+    ]);
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const headers = new Headers(requestInit.headers as HeadersInit);
+    expect(headers.get('Authorization')).toBe('Bearer tok-3');
+    expect(headers.get('user_id')).toBe('user-9');
+    expect(headers.has('sign')).toBe(true);
+    expect(fetchMock.mock.calls[0]?.[0]).toContain(
+      '/fuel-vehicle/servervehicle/app/vehicle/mine?position=1',
+    );
+  });
+
+  test('getUserVehicles() lanza error si data no es array', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        code: '0',
+        data: null,
+      }),
+    } as Response);
+
+    const client = new VehicleClient('https://example.test/v1.0');
+    await expect(client.getUserVehicles('tok-4', 'user-1')).rejects.toBeInstanceOf(CloudAuthError);
+  });
 });

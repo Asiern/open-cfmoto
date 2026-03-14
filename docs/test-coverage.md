@@ -1,81 +1,62 @@
 # Test Coverage — open-cfmoto
 
-Last updated: 2026-03-14 (Block 4 — final state)
+Last updated: 2026-03-14
+
+---
+
+## packages/cloud-client
+
+Run: `pnpm --filter @open-cfmoto/cloud-client test`
+
+| File | Test file | Coverage |
+|------|-----------|----------|
+| `src/signing.ts` | `src/__tests__/signing.test.ts` | MD5(SHA1) signature vector, nonce length/randomness, timestamp in unix ms, required headers, GET query signing (sorted + URL-encoded) |
+| `src/auth.ts` | `src/__tests__/auth.test.ts` | successful login token extraction, invalid credentials -> `CloudAuthError`, `getToken()` pre-login null, login payload shape (`login_by_idcard`), MD5 password normalization |
+| `src/vehicle.ts` | `src/__tests__/vehicle.test.ts` | `getEncryptInfo` parsing + errors, signed request headers, `getUserVehicles` success + malformed response handling |
+
+Status: cloud-client unit coverage is in place for the implemented API surface.
 
 ---
 
 ## packages/ble-protocol
 
-Pure TypeScript, zero React Native deps. Run: `pnpm --filter @open-cfmoto/ble-protocol test`
+Run: `pnpm --filter @open-cfmoto/ble-protocol test`
 
 | File | Test file | Coverage |
 |------|-----------|----------|
-| `src/codec.ts` | `__tests__/codec.test.ts` | `buildFrame`/`parseFrame` round-trips, CRC correctness, header/end byte validation, invalid frame rejection |
-| `src/auth.ts` | `__tests__/auth.test.ts` | `NotImplementedError` thrown by `step1`/`step2`, error message content |
-| `src/keepalive.ts` | `__tests__/keepalive.test.ts` | Heartbeat at 2 s interval, 4 s watchdog fires on no ACK, `notifyAck()` resets watchdog, `stop()` clears all timers |
-| `src/response-router.ts` | `__tests__/response-router.test.ts` | Frame dispatch by control code, handler registration/deregistration, invalid frames silently ignored; all `ControlCode` values can be registered and dispatched |
-| `src/commands/index.ts` | `__tests__/commands.test.ts` | All 6 builders produce valid frames with correct control codes; `findCar` covers all 3 modes; `setIndicators` covers all 3 sides; `setUnits` covers both systems; `setSpeedLimit` boundary values (0, 120, 255); `RangeError` for 256 and −1. `heartbeat()` removed — owned by `KeepAliveManager` |
+| `src/codec.ts` | `__tests__/codec.test.ts` | frame build/parse round-trips, CRC, header/end validation, invalid frame rejection |
+| `src/auth.ts` | `__tests__/auth.test.ts` | full auth handshake behavior (0x5A -> 0x5B -> 0x5C -> 0x5D), success/failure paths, timeout paths, AES-256/ECB/PKCS7 round-trip helper validation |
+| `src/keepalive.ts` | `__tests__/keepalive.test.ts` | 2s heartbeat interval, 4s watchdog timeout, `notifyAck()` watchdog reset, `stop()` timer cleanup |
+| `src/response-router.ts` | `__tests__/response-router.test.ts` | dispatch by control code, handler register/unregister, invalid frames ignored |
+| `src/commands/index.ts` | `__tests__/commands.test.ts` | command builders for lock/unlock/find-car/indicators/units/speed-limit + boundary checks |
+| `src/cfmoto450.ts` | `src/__tests__/cfmoto450.test.ts` | cloud connect flow ordering (`login -> getEncryptInfo -> authenticate`), no-credentials dev mode, error propagation on login/encryptInfo failures |
 
-**Total: ~54 tests across 5 suites — all passing.**
-
-### Coverage type: unit
-All suites run in plain Node (Jest, no hardware). Fake timers cover all timing logic.
-
-### Not yet tested
-
-| File | Reason |
-|------|--------|
-| `src/cfmoto450.ts` | Requires real BLE transport or full mock wiring — hardware validation scope |
-| `src/mock/mock-protocol.ts` | Used for integration / Storybook, not unit-tested |
-| `src/generated/meter.ts` | Generated file — not tested directly |
+Status: protocol unit coverage includes cloud-auth integration flow at connect-time.
 
 ---
 
 ## apps/mobile
 
-No React Native renderer required. Run: `cd apps/mobile && pnpm test`
+Run: `cd apps/mobile && pnpm test`
 
 | File | Test file | Coverage |
 |------|-----------|----------|
-| `src/stores/bike.store.ts` | `src/__tests__/bike-store.test.ts` | `lastHeartbeatAck` updates on `recordHeartbeatAck()`; `commandHistory` FIFO cap at 20; `recordCommandSent` fields; `recordCommandAcked` targets most-recent unacked; already-acked entries not overwritten |
-| `src/stores/settings.store.ts` | `src/__tests__/settings-store.test.ts` | Default values; `setUnits`/`setSpeedLimit`/`setLastConnectedDevice` update state and persist to MMKV; `lastConnectedDeviceId` available synchronously; `useMockBike` stays in-memory (not persisted) |
-| `src/providers/CFMotoProvider.tsx` | `src/__tests__/provider.test.tsx` | `requestBlePermissions` called on Android; `bleService.initialize()` called after granted; `onPermissionDenied` called on denial; iOS skips permission request and initializes directly; `bleService.destroy()` called on cleanup |
-| `src/hooks/index.ts` | `src/__tests__/hooks.test.ts` | `connectAndPersist` updates settings store; `isConnected` derived from store; `checkConnected` throws on non-connected states; `sendBikeCommand` routes frame + records command; throws before sending if not connected; `calcIsAlive` boundary values (null, old, recent, exact threshold); `buildTripSummary` durationMs calculation; `persistTrip` writes correct JSON to MMKV |
+| `src/stores/bike.store.ts` | `src/__tests__/bike-store.test.ts` | heartbeat ack state, command history FIFO + ack marking |
+| `src/stores/settings.store.ts` | `src/__tests__/settings-store.test.ts` | defaults, MMKV persistence, non-persisted `useMockBike` |
+| `src/providers/CFMotoProvider.tsx` | `src/__tests__/provider.test.tsx` | Android permission/init flow, iOS init path, cleanup destroy |
+| `src/hooks/index.ts` | `src/__tests__/hooks.test.ts` | connect helpers, connection guards, command send helpers, heartbeat derived state, ride summary persistence |
+| `src/services/ble.service.ts` + protocol integration | `src/__tests__/integration/ble-service.test.ts` | connect order, subscribe/write wiring, MTU request, disconnect cleanup, reconnect behavior, keepalive integration |
 
-| `src/services/ble.service.ts` + `src/cfmoto450.ts` | `src/__tests__/integration/ble-service.test.ts` | Connect sequence call order (connect→subscribe→requestMtu); CHAR_NOTIFY / CHAR_WRITE / MTU 185 verified; store transitions (connecting→connected→disconnected); sendCommand routes to CHAR_WRITE with correct characteristic; findCar frame carries control code 0x6A; disconnect resets store + calls transport.disconnect; no auto-reconnect; manual reconnect succeeds; KeepAliveManager watchdog integration (4s fires onDisconnect, notifyAck resets, heartbeat frame 0x67, onDisconnect drives bleService.disconnect) |
+---
 
-**Jest config:** `ts-jest` + Node environment + inline tsconfig (`moduleResolution: node`) + `.tsx` support.
-**MMKV mock:** per-instance `Map` at `__mocks__/react-native-mmkv.ts` — no filesystem I/O in tests.
-**bleService mock:** `jest.mock('../services/ble.service')` with `jest.fn()` spies in provider/hooks tests.
-**Integration transport:** spy object injected directly (no `react-native-ble-plx` required).
+## Hardware-pending validation
 
-**Total: ~70 tests across 8 suites — all passing.**
+Still requires real bike + real cloud-linked vehicle:
 
-### Coverage type summary
+- Cloud `encryptInfo` populated with real VIN-linked vehicle (`vehicleId != -1`)
+- End-to-end auth against TBox with real `encryptValue` + `key`
+- Keep-alive ACK code confirmation on hardware (`0xEC` vs potential fallback observations)
+- Lock/unlock encrypted payload acceptance by real TBox
+- MotoPlay boundary confirmation vs cloud telemetry path
 
-| Suite | Type | What's real |
-|-------|------|-------------|
-| `ble-protocol` unit suites (5) | Unit | Full protocol logic |
-| `apps/mobile` store/provider/hooks suites (4) | Unit | Store + hook helpers; bleService mocked |
-| `apps/mobile` integration suite (1) | Integration | Real CFMoto450Protocol + real codec/commands; transport mocked |
-
-### Requires hardware to validate
-
-| Item | See |
-|------|-----|
-| Keep-alive ACK control code (`0xEC` vs `0xE7`) | `docs/hardware-validation.md` §1 |
-| Lock/unlock AES-256 encrypted payload | `docs/hardware-validation.md` §2 |
-| DISPLAY_UNITS enum values | `docs/hardware-validation.md` §3 |
-| 100ms post-connect delay necessity | `docs/hardware-validation.md` §4 |
-| MTU 185 negotiation grant | `docs/hardware-validation.md` §5 |
-| TD-04 race condition (provider unmount during permission prompt) | `docs/hardware-validation.md` §6 |
-| TD-05 stale closure in `useRideRecording` (reconnect scenario) | `docs/hardware-validation.md` §7 |
-| TD-06 `recordCommandAcked` wiring (ACK code mapping) | `docs/hardware-validation.md` §8 |
-
-### Not yet tested (deferred)
-
-| File | Reason |
-|------|--------|
-| `src/services/ble-transport.adapter.ts` | React Native adapter — requires `react-native-ble-plx` mock |
-| `src/db/schema.ts` | SQLite — requires `expo-sqlite` mock |
-| Screen components | UI tests deferred — Storybook setup pending |
+See: `docs/hardware-validation.md`.

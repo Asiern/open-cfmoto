@@ -32,6 +32,25 @@ export interface VehicleNowInfoResp {
   [key: string]: unknown;
 }
 
+export interface UserVehicle {
+  vehicleId?: string;
+  vehicleName?: string;
+  vin?: string;
+  btMac?: string;
+  virtualFlag?: string | number;
+  isCurrent?: number | boolean;
+  [key: string]: unknown;
+}
+
+export interface UserVehiclesResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: UserVehicle[];
+  success?: boolean;
+  [key: string]: unknown;
+}
+
 export interface TokenInfo {
   accessToken: string;
   refreshToken?: string;

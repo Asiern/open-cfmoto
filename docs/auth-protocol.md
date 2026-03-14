@@ -298,98 +298,32 @@ the same way as the main flow — no test credentials bundled.
 
 ---
 
-## 7. Key Discrepancies with Current Implementation
+## 7. Implementation status in open-cfmoto (2026-03-14)
 
-### D1 — Post-connect delay sequence
+Current `CFMoto450Protocol.connect()` behavior:
 
-Current `CFMoto450Protocol`:
 ```
-connect() → 100ms → subscribe → requestMtu(185) → handshake stub
-```
-
-Confirmed OEM sequence:
-```
-connect() → 100ms → setNotify() → notify success → 50ms → setMtu(185)
-            → MTU result (success or fail) → 2000ms → authPkg()
+connect() → 100ms → subscribe → requestMtu(185) [continue on failure]
+         → 2000ms delay → cloud login + getEncryptInfo → AuthFlow.authenticate()
 ```
 
-**Impact:** The 2000ms delay after MTU before sending auth is missing.
-Auth sent immediately after MTU will likely succeed on hardware, but the 2s
-buffer may be needed for some TBox firmware versions.
+This now matches the critical OEM timing/flow expectations:
 
-### D2 — Auth proceeds if MTU fails
+- 100ms delay before notify registration.
+- Auth still proceeds if MTU negotiation fails.
+- 2000ms delay after MTU callback before starting auth.
+- Full 0x5A → 0x5B → 0x5C → 0x5D flow implemented in `packages/ble-protocol/src/auth.ts`.
 
-OEM code: `onSetMTUFailure` also calls `authPkg()` after the 2000ms delay.
-Current stub: no auth attempted.
+Current intentional deviations:
 
-**Impact:** If MTU negotiation fails, auth should still be attempted with default MTU.
-
-### D3 — Auth timeout watchdog
-
-OEM code arms a 3s timeout (`KEEP_AUTH_CONNECT_TIMEOUT`) at MTU callback → auth begin.
-If no 0x5D arrives in 3s → `setConnectStatus(-5)` (auth failed).
-
-**Impact:** Not blocking for initial implementation; add for robustness.
-
-### D4 — `notifyResult` not decompiled
-
-The incoming frame dispatch (615 instructions) is unknown from static analysis alone.
-**How `codec` is extracted from `TboxRandomNum` and passed to `authPkg2` is inferred,
-not directly confirmed.** Capture live BLE traffic to verify exact codec string format.
+- OEM auth timeout watchdog is 3s (`KEEP_AUTH_CONNECT_TIMEOUT`), while open-cfmoto uses
+  5s per wait step in `AuthFlow` to reduce false negatives during testing.
+- `notifyResult` in OEM app is not fully decompiled, so codec handling remains based on
+  validated inference (`TboxRandomNum.codec` interpreted as UTF-8 hex string).
 
 ---
 
-## 8. What's Needed to Implement Auth
-
-To implement `AuthFlow.step1()` and `AuthFlow.step2()`:
-
-1. **Cloud API access** — Need `VehicleNowInfoResp.encryptInfo` fields:
-   - `encryptValue` (hex string)
-   - `key` (AES key string, expected 16/24/32 chars)
-
-2. **AES-256/ECB/PKCS7 library** — BouncyCastle equivalent for JavaScript/TypeScript.
-   Options: `node-forge`, `crypto-js`, or WebCrypto AES-ECB (not natively supported
-   — needs polyfill or `forge`).
-
-3. **Hex codec** — `encryptValue` is hex-decoded before use; `TboxRandomNum.codec`
-   is hex-decoded before AES decrypt.
-
-4. **Key encoding** — `key` string → `Buffer.from(key, 'utf8')` (NOT hex-decode).
-
-5. **Live traffic capture** — To confirm:
-   - Exact format of `TboxRandomNum.codec` (hex string, as inferred)
-   - ACK code for heartbeat (`0xEC` expected from `DecoderData.KEEP_ALIVE`)
-   - What `TboxAuthResult.result` values look like on failure
-
-### Minimal implementation sketch (pseudocode)
-
-```typescript
-// Step 1
-function step1(encryptValue: string): Uint8Array {
-  const raw = hexDecode(encryptValue);           // hex string → bytes
-  const pkg = AuthPackage.fromPartial({ info: raw });
-  return buildFrame(ControlCode.AUTH_PACKAGE, AuthPackage.encode(pkg).finish());
-}
-
-// Step 2 (called when 0x5B frame arrives)
-function step2(tboxRandomNumPayload: Uint8Array, key: string): Uint8Array {
-  const msg = TboxRandomNum.decode(tboxRandomNumPayload);
-  const codecHex = new TextDecoder().decode(msg.codec); // bytes → hex string
-  const ciphertext = hexDecode(codecHex);               // hex → raw bytes
-  const keyBytes = new TextEncoder().encode(key);        // UTF-8 encode key
-  const decrypted = aesEcbDecrypt(ciphertext, keyBytes); // AES-256/ECB/PKCS7
-  const sn = new TextDecoder().decode(decrypted);        // bytes → string
-  const rn = RandomNum.fromPartial({ sn });
-  return buildFrame(ControlCode.RANDOM_NUM, RandomNum.encode(rn).finish());
-}
-```
-
-**Crypto note:** WebCrypto does not support AES-ECB natively. Use `node-forge` or
-`@noble/ciphers` (AES-ECB available) for the decrypt operation.
-
----
-
-## 9. Open Questions
+## 8. Open Questions
 
 | # | Question | How to Answer |
 |---|----------|---------------|

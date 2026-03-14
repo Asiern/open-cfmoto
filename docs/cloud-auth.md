@@ -79,32 +79,87 @@ y el TrustManager custom ignora todo de todas formas.
 
 ## Hallazgos dinámicos confirmados (2026-03-14)
 
-Sobre la captura exportada (`full-history`):
+Captura: `tools/apk-analysis/mitm-logs/full-history` — 98 items, 3 hosts.
 
-- Host API observado: `https://tapi-flkf.cfmoto-oversea.com` (dominio regional).
-- Login observado: `POST /v1.0/fuel-user/serveruser/app/auth/user/login_by_idcard`.
-- El endpoint `login_by_idcard` acepta `idcardType: "email"` y `idcard: "<email>"`.
-- El `password` observado via app se envía como hash MD5 (32 hex), no en claro.
-- Token de sesión en respuesta:
-  - `data.tokenInfo.accessToken`
-  - `data.tokenInfo.refreshToken`
-  - `data.tokenInfo.tokenType = "bearer"`
-- Request signing observado en tráfico real:
-  - `Cfmoto-X-Sign`, `Cfmoto-X-Param`, `appId`, `nonce`, `signature`, `timestamp`
-  - `signature` de 32 hex chars en todos los requests cloud capturados.
-- `nonce` observado en captura real: **16 chars**.
-
-Ejemplo sanitizado de login capturado:
+### Login — request y response completos
 
 ```http
 POST /v1.0/fuel-user/serveruser/app/auth/user/login_by_idcard
+Host: tapi-flkf.cfmoto-oversea.com
 Authorization: Bearer cfmoto_virtual_vehicle_token
 Cfmoto-X-Sign: <32-hex>
-Cfmoto-X-Param: appId=rRrIs3ID&nonce=<16chars>&timestamp=<unix-ms>
+Cfmoto-X-Param: appId=rRrIs3ID&nonce=A5X2k0SV2j3GFY71&timestamp=1773508178729
+Cfmoto-X-Sign-Type: 0
+appId: rRrIs3ID
+nonce: A5X2k0SV2j3GFY71
+signature: <32-hex>
+timestamp: 1773508178729
+user_id:
+lang: en_US
+ZoneId: Europe/Madrid
+User-Agent: MOBILE|Android|35|CFMOTO_INTERNATIONAL_APP|2.2.5|Dalvik/2.1.0 (Linux; U; Android 15; sdk_gphone64_x86_64 Build/BE31.1-preview4)|1080x2400|<deviceId>|WIFI|Android
 Content-Type: application/json; charset=UTF-8
 
-{"idcardType":"email","idcard":"<email>","password":"<md5-32-hex>","areaNo":"ES"}
+{
+  "idcardType": "email",
+  "idcard": "<email>",
+  "password": "<md5-32-hex>",
+  "areaNo": "ES",
+  "thirdpartyId": "",
+  "thirdpartyType": "",
+  "areaCode": "",
+  "emailMarketingAlarm": false,
+  "verifyCode": ""
+}
 ```
+
+Response:
+```json
+{
+  "code": "0",
+  "msg": "success",
+  "data": {
+    "userId": "<userId>",
+    "email": "<email>",
+    "nickName": "<nick>",
+    "areaNo": "ES",
+    "region": "eu-central-1",
+    "tokenInfo": {
+      "accessToken": "<uuid>",
+      "tokenType": "bearer",
+      "refreshToken": "<uuid>",
+      "scope": "all read write app",
+      "expiresIn": 8639999
+    },
+    "googleMapEnable": false
+  },
+  "success": true
+}
+```
+
+**Confirmaciones clave**:
+- `password` = MD5 hex de 32 chars ✅
+- Token en `data.tokenInfo.accessToken` (no en `data.token`) ✅
+- `refreshToken` presente ✅ — TTL confirmado: **8.639.999 s ≈ 100 días**
+- `nonce` observado: **16 chars alfanuméricos** ✅ (ej. `A5X2k0SV2j3GFY71`)
+- Signing `Cfmoto-X-Sign` de 32 hex en todos los requests ✅
+- Host regional observado: `tapi-flkf.cfmoto-oversea.com` (distinto al fallback `tapi.cfmoto-oversea.com`)
+
+### Vehicle list — vehicleId=-1 (vehículo virtual)
+
+`GET /vehicle/mine?position=1` devuelve `virtualFlag: "1"` y `vehicleId: "-1"`.
+La cuenta de captura tiene únicamente el vehículo demo — por eso **`encryptInfo` llega vacío**.
+Para obtener `encryptValue` + `key` reales hay que capturar con una moto física vinculada.
+
+### User-Agent — formato exacto
+
+```
+MOBILE|Android|{sdkInt}|CFMOTO_INTERNATIONAL_APP|{appVersion}|Dalvik/2.1.0 (Linux; U; Android {version}; {model} Build/{buildId})|{widthxheight}|{deviceId}|{network}|Android
+```
+
+Ejemplo real: `MOBILE|Android|35|CFMOTO_INTERNATIONAL_APP|2.2.5|Dalvik/2.1.0 (Linux; U; Android 15; sdk_gphone64_x86_64 Build/BE31.1-preview4)|1080x2400|<deviceId>|WIFI|Android`
+
+Mismo valor en `X-App-Info` y `User-Agent`.
 
 ### URLs base
 
@@ -124,32 +179,63 @@ Content-Type: application/json; charset=UTF-8
 
 Base: `fuel-user/serveruser/`
 
+Fuente: análisis estático (`UserService.java`) + captura dinámica. ✅ = observado en captura.
+
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
-| POST | `app/auth/user/login_by_idcard` | — | **Login** → devuelve Bearer token |
+| POST | `app/auth/user/login_by_idcard` | — | **Login** → Bearer token ✅ |
+| GET | `app/auth/user/user_info` | Bearer | Info de usuario ✅ |
+| GET | `app/auth/user/getMqttUserInfo?machineCode=` | Bearer | **Credenciales MQTT cifradas** ✅ |
+| GET | `app/auth/user/mqtt/log/upload/info` | Bearer | Config log MQTT ✅ |
+| POST | `app/auth/user/user_machine_code` | Bearer | Registrar machine code del dispositivo ✅ |
+| POST | `app/auth/user/user_device_id` | Bearer | Registrar Firebase push token ✅ |
+| POST | `app/auth/user/createEndpoint` | Bearer | Endpoint de push notifications ✅ |
+| POST | `app/auth/user/change_language` | Bearer | Actualizar idioma ✅ |
+| PUT | `app/user/timezone?offset=` | Bearer | Actualizar timezone ✅ |
 | POST | `common/code/send_code_v2` | — | Enviar código SMS/email |
 | POST | `common/code/check_code` | — | Verificar código |
 | POST | `app/auth/user/registe` | — | Registro de usuario |
 | PUT | `app/auth/user/setPsw` | Bearer | Establecer contraseña |
 | PUT | `app/auth/user/updatePsw` | Bearer | Cambiar contraseña |
-| GET | `app/auth/user/getUserInfo` | Bearer | Info de usuario |
 | POST | `app/auth/user/updateUserInfo` | Bearer | Actualizar perfil |
 | PUT | `app/auth/user/cancelUser` | Bearer | Eliminar cuenta |
 | GET | `app/dealer/store/country` | — | Lista de países/regiones |
+| GET | `app/launch/advertisement/appLaunchPageAdvertisement/all` | Bearer | Splash ads ✅ |
+| GET | `app/popwindow?position=` | Bearer | Pop-ups in-app ✅ |
+| GET | `sys/oss/sts` | Bearer | Credenciales OSS (Aliyun) temporales ✅ |
+| POST | `app/dbpoint/send` | Bearer | Analytics de eventos app ✅ |
 
 ### VehicleService — Vehículo y telemetría BLE
 
 Base: `fuel-vehicle/servervehicle/`
 
+✅ = observado en captura.
+
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
-| GET | `app/vehicle?vehicleId=...` | Bearer | **Detalles vehículo** → `VehicleNowInfoResp` (contiene claves BLE) |
+| GET | `app/vehicle/mine?position=` | Bearer | **Lista de vehículos del usuario** ✅ |
+| GET | `app/vehicle?vehicleId=` | Bearer | **Detalles vehículo** → `encryptInfo` (claves BLE) ✅ |
+| GET | `app/vehicle-type/show` | Bearer | Tipos de vehículo ✅ |
+| GET | `app/vehicle-type/show/suggest` | Bearer | Sugerencias de tipo ✅ |
+| GET | `app/vehicle/set/special/function` | Bearer | Funciones especiales del vehículo ✅ |
+| GET | `app/vehicle/set/list/compatibility/ele-v2?deviceId=` | Bearer | Settings compatibilidad ✅ |
+| GET | `app/vehicle/message/list/unread?deviceId=` | Bearer | Mensajes sin leer ✅ |
+| GET | `app/setting` | Bearer | Settings generales ✅ |
+| GET | `app/google/map/setting` | Bearer | Config Google Maps ✅ |
+| GET | `app/v2/sim/check` | Bearer | Estado SIM ✅ |
+| GET | `app/ota/redPointType?deviceId=` | Bearer | OTA pendiente (indicador) ✅ |
+| GET | `app/alarm/messagerecord/red/dot` | Bearer | Alertas sin leer ✅ |
+| GET | `app/information/type` | Bearer | Tipos de contenido/noticias ✅ |
+| GET | `app/information/content?consultTypeId=&pageNum=&pageSize=` | Bearer | Contenido/noticias ✅ |
+| GET | `app/privacy/protocol?areaNo=` | Bearer | Privacidad/TOS ✅ |
+| GET | `app/privacy/protocol/protocol-info?areaNo=` | Bearer | Info protocolo privacidad ✅ |
+| GET | `app/version/version-detail?areaNo=&phoneType=&versionNumber=` | Bearer | Info de versión ✅ |
 | POST | `app/vehicle/bind-v3` | Bearer | Vincular vehículo (primera vez) |
 | GET | `app/vehicle/charge/detail/{vehicleId}` | Bearer | Estado de carga |
 | POST | `app/charging/createScheduleCharging` | Bearer | Programar carga |
 | GET | `app/ridehistory` | Bearer | Historial de rutas |
 | GET | `app/ridehistory/{id}` | Bearer | Detalle de ruta |
-| GET | `app/vehicle/update/list` | Bearer | Actualizaciones OTA disponibles |
+| GET | `app/vehicle/update/list` | Bearer | Actualizaciones OTA |
 | POST | `app/vehicle/update/execute` | Bearer | Ejecutar OTA |
 | POST | `app/electricFence` | Bearer | Crear geocerca |
 | PUT | `app/electricFence/{id}` | Bearer | Actualizar geocerca |
@@ -200,7 +286,7 @@ Estas son exactamente las claves que el protocolo BLE necesita para la autentica
 | `user_id` | ID numérico del usuario | MMKV storage |
 | `lang` | `en_US`, `es_ES`, etc. | Locale del sistema |
 | `ZoneId` | `Europe/Madrid`, etc. | TimeZone.getDefault() |
-| `User-Agent` | `CFMoto/2.2.5 Android/...` | UserAgentUtil |
+| `User-Agent` / `X-App-Info` | `MOBILE\|Android\|{sdk}\|CFMOTO_INTERNATIONAL_APP\|{ver}\|Dalvik/...\|{res}\|{deviceId}\|{net}\|Android` | UserAgentUtil |
 | `download_id` | `Android<userId><installTimestamp>` | Fingerprint de instalación |
 | `appId` | `rRrIs3ID` | Hardcodeado |
 | `nonce` | 16 chars random (SecureRandom) | Generado por request |
@@ -390,17 +476,17 @@ Cuando termines, en Android:
 
 ## Notas adicionales
 
-- **MQTT** (`mqtts.cfmoto-oversea.com:8883`): El broker MQTT usa SSL pero tampoco hay pinning.
-  Se puede interceptar con un proxy MQTT (ej. Mosquitto en modo bridge) o con mitmproxy en modo TCP.
-  El protocolo MQTT no es necesario para el flujo BLE principal.
+- **Token TTL**: **confirmado en captura** — `expiresIn: 8639999` ≈ 100 días. `refreshToken` presente en la respuesta de login pero sin endpoint de refresh confirmado en el APK ni en capturas. En open-cfmoto se lanza `CloudAuthError` para forzar relogin.
 
-- **Aliyun OSS**: usado para upload de fotos de perfil. No relevante para BLE.
+- **MQTT** (`mqtts.cfmoto-oversea.com:8883`): las credenciales se obtienen de `getMqttUserInfo?machineCode=<hwId>` como blob cifrado base64 (probablemente AES). El `machineCode` es un identificador de hardware del dispositivo Android (`98bc59b5f9218ff4` en la captura). Sin descifrar el blob no se puede autenticar en el broker. No es necesario para el flujo BLE MVP.
 
-- **Token TTL**: desconocido, pero el interceptor gestiona 401 → `loginExpired()` automáticamente.
-  Probablemente sea un JWT — se puede decodificar con `jwt.io` para ver la expiración.
+- **machineCode / device fingerprint**: la app registra `machineCode` (hardware ID) y `deviceId` (Firebase push token) en endpoints separados tras el login. No parece que el servidor valide estos en cada request, solo los almacena para push/MQTT.
 
-- **`cfmoto_virtual_vehicle_token`**: token hardcodeado usado antes del login.
-  Podría dar acceso a endpoints públicos sin autenticación.
+- **`cfmoto_virtual_vehicle_token`**: token hardcodeado usado antes del login (confirmado en captura — es el `Authorization` del request de login). Da acceso únicamente a endpoints sin autenticación real.
+
+- **Mapbox**: tráfico a `api.mapbox.com` y `config.mapbox.com` con token `pk.eyJ1IjoiY2FyYml0IiwiYSI6ImNreGp0cDJjbTBuc3QyeHFrcjN5bWdhNmsifQ.ahQqET49R1Z2YJWKZDJ_dw`. Estilo `streets-v11`, capas terrain + traffic. Google Maps desactivado para región ES (`googleMapEnable: false` en login response).
+
+- **Aliyun OSS**: assets de vehículo (imágenes) en `oss-cfmoto.zeehoev.com` y `international.oss-ap-southeast-1.aliyuncs.com`. Credenciales temporales vía `sys/oss/sts`. No relevante para BLE.
 
 ---
 
@@ -428,6 +514,10 @@ con `packages/ble-protocol/`.
   - `GET /fuel-vehicle/servervehicle/app/vehicle?vehicleId=...`
   - firma GET con query params ordenados y URL-encoded (estilo `RequestSignInterceptor`)
   - se propaga `user_id` si existe tras login; si no, se envia vacio igual que el interceptor
+- Lista de vehiculos del usuario implementada sobre:
+  - `GET /fuel-vehicle/servervehicle/app/vehicle/mine?position=1`
+  - parseo de `data[]` en respuesta (`Vehicle[]` del APK)
+  - firma GET con `position` y mismos headers (`Authorization`, `user_id`, `lang`, `ZoneId`)
 - No se persiste password:
   - No se escribe en disco (MMKV/SQLite/etc.)
   - No se guarda en estado de larga vida del cliente cloud
@@ -437,3 +527,44 @@ con `packages/ble-protocol/`.
 - Campo `iv`:
   - Se mantiene en tipos y respuesta cloud para trazabilidad
   - En BLE auth actual se ignora porque el flujo confirmado usa `AES/ECB/PKCS7` (sin IV)
+
+---
+
+## Estado actual del cliente cloud (2026-03-14)
+
+Implementado en `packages/cloud-client/`:
+
+- `CloudAuthClient.login()`:
+  - Endpoint: `POST /fuel-user/serveruser/app/auth/user/login_by_idcard`
+  - `idcardType` auto (`email` o `phone`)
+  - `password` en MD5 hex (rehash solo si no viene ya en formato MD5)
+  - Guarda en memoria `token` y `userId`
+- `CloudAuthClient.refreshToken()`:
+  - Sin endpoint confirmado de refresh en APK/capturas
+  - Devuelve `CloudAuthError` indicando relogin
+- `VehicleClient.getEncryptInfo()`:
+  - Endpoint: `GET /fuel-vehicle/servervehicle/app/vehicle?vehicleId=...`
+  - Firma GET con query params ordenados y URL-encoded
+  - Extrae `encryptInfo` desde `data.encryptInfo` o `data.vehicleInfo.encryptInfo`
+- `VehicleClient.getUserVehicles()`:
+  - Endpoint: `GET /fuel-vehicle/servervehicle/app/vehicle/mine?position=...`
+  - Devuelve lista tipada de vehículos del usuario
+- Integración BLE:
+  - `CFMoto450Protocol.connect(..., cloudCredentials)` ejecuta:
+    1) `login`
+    2) `getEncryptInfo`
+    3) `AuthFlow.authenticate({ encryptValue, key })`
+  - Sin credenciales cloud: modo dev con warning y sin auth
+
+Integrado también en app móvil (`apps/mobile/src/services/cloud-auth.service.ts`):
+- Login cloud funcional
+- Consulta de vehículos del usuario funcional
+
+---
+
+## Captura dinámica y tooling
+
+- Export principal de tráfico: `tools/apk-analysis/mitm-logs/full-history` (sanitizar antes de commit).
+- Script de override de proxy usado en pruebas con Frida:
+  - `tools/apk-analysis/frida/burp-override.js`
+  - Objetivo: forzar tráfico hacia Burp/mitm en escenarios donde la app no respeta proxy de sistema.
