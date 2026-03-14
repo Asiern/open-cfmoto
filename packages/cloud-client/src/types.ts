@@ -145,3 +145,56 @@ export interface CloudCredentials {
   password: string;
   vehicleId: string;
 }
+
+/**
+ * User profile data from GET /auth/user/user_info and PUT /auth/user/update_info.
+ * Fields sourced from LoginBean.java in APK decompilation.
+ */
+export interface UserProfile {
+  userId?: string;
+  nickName?: string;
+  firstName?: string;
+  lastName?: string;
+  realName?: string;
+  email?: string;
+  phone?: string;
+  photo?: string;
+  /** 0 = unknown, 1 = male, 2 = female (APK default: 2) */
+  gender?: number;
+  /** Unix timestamp in ms */
+  birthday?: number;
+  areaCode?: string;
+  areaNo?: string;
+  region?: string;
+  noticeEnabled?: number;
+  isDealer?: boolean;
+  isVip?: number;
+  cancelStatus?: number;
+  [key: string]: unknown;
+}
+
+export interface UserProfileResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: UserProfile;
+  success?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Request body for PUT /auth/user/update_info.
+ * Fields sourced from UpdateUserInfoReq.java in APK decompilation.
+ */
+export interface UpdateUserInfoRequest {
+  nickName?: string;
+  firstName?: string;
+  lastName?: string;
+  realName?: string;
+  email?: string;
+  phone?: string;
+  photo?: string;
+  gender?: number;
+  birthday?: number;
+  noticeEnabled?: number;
+}
