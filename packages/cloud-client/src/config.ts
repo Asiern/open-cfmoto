@@ -9,6 +9,8 @@ export const CLOUD_CONFIG = {
     USER_INFO: '/fuel-user/serveruser/app/auth/user/user_info',
     UPDATE_INFO: '/fuel-user/serveruser/app/auth/user/update_info',
     UPDATE_AREA_NO: '/fuel-user/serveruser/app/auth/user/updateUserAreaNo',
+    RIDE_HISTORY_LIST: '/fuel-vehicle/servervehicle/app/ridehistory/list_v2',
+    RIDE_HISTORY: '/fuel-vehicle/servervehicle/app/ridehistory',
     REGISTER: '/fuel-user/serveruser/app/auth/user/register',
     SEND_CODE: '/fuel-user/serveruser/common/code/send_code',
     CHECK_CODE: '/fuel-user/serveruser/common/code/check_code',

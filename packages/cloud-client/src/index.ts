@@ -5,3 +5,4 @@ export * from './auth';
 export * from './vehicle';
 export * from './user';
 export * from './account';
+export * from './ride';

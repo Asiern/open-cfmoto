@@ -191,6 +191,101 @@ export interface UserProfileResponse {
  * Sourced from RegisteReq.java + BaseAccountReq.java in APK decompilation.
  * `password` is accepted as plaintext and MD5-hashed before sending.
  */
+/**
+ * Single ride entry returned by GET /ridehistory/list_v2.
+ * Sourced from HistoryTravelResp.java in APK decompilation.
+ */
+export interface RideHistoryItem {
+  id: string;
+  /** Unix timestamp ms */
+  startTime: number;
+  /** Unix timestamp ms */
+  endTime: number;
+  startAddr?: string;
+  endAddr?: string;
+  /** Trip distance */
+  rideMileage: number;
+  /** Trip duration (int seconds in list view) */
+  ridingTime: number;
+  maxSpeed: number;
+  accelerationTimes: number;
+  bendingTimes: number;
+  brakesTimes: number;
+  /** Date bucket for grouping, format yyyy-MM-dd */
+  dayTime?: string;
+  /** Sum of mileage for the day this ride belongs to */
+  dayRideMileage?: number;
+  /** Running total mileage across all rides */
+  totalRideMileage?: number;
+  trajectory?: string;
+  trajectoryImageUrl?: string;
+  trackThumbnailsUrl?: string;
+  virtualTrackImage?: string;
+  powerConsumption?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Full ride detail returned by GET /ridehistory?id=<id>&month=<month>.
+ * Sourced from RideHistoryDetail.java in APK decompilation.
+ */
+export interface RideHistoryDetail {
+  id?: string;
+  /** Unix timestamp ms */
+  startTime?: number;
+  /** Unix timestamp ms */
+  endTime?: number;
+  startAddr?: string;
+  endAddr?: string;
+  rideMileage?: number;
+  /** Fractional seconds/hours depending on server version */
+  ridingTime?: number;
+  ridingTimeSeconds?: string;
+  maxSpeed?: number;
+  accelerationTimes?: number;
+  bendingTimes?: number;
+  brakesTimes?: number;
+  /** GeoJSON LineString or encoded polyline */
+  trajectory?: string;
+  virtualTrackImage?: string;
+  [key: string]: unknown;
+}
+
+export interface RideHistoryListResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: RideHistoryItem[];
+  success?: boolean;
+  [key: string]: unknown;
+}
+
+export interface RideHistoryDetailResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: RideHistoryDetail;
+  success?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Query parameters for GET /ridehistory/list_v2.
+ * Sourced from RideHistoryReq.java in APK decompilation.
+ */
+export interface RideHistoryListParams {
+  vehicleId: string;
+  /** 1-indexed page number, default 1 */
+  pageStart?: number;
+  /** Items per page, default 20 */
+  pageSize?: number;
+  /** Filter start date, format yyyy-MM-dd */
+  startDate?: string;
+  /** Filter end date, format yyyy-MM-dd */
+  endDate?: string;
+  startPositionName?: string;
+}
+
 export interface RegisterRequest {
   /** Email address or phone number */
   idcard: string;
