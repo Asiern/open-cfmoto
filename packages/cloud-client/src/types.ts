@@ -186,6 +186,67 @@ export interface UserProfileResponse {
  * Request body for PUT /auth/user/update_info.
  * Fields sourced from UpdateUserInfoReq.java in APK decompilation.
  */
+/**
+ * Request body for POST /auth/user/register.
+ * Sourced from RegisteReq.java + BaseAccountReq.java in APK decompilation.
+ * `password` is accepted as plaintext and MD5-hashed before sending.
+ */
+export interface RegisterRequest {
+  /** Email address or phone number */
+  idcard: string;
+  /** Accepted as plaintext — MD5-hashed before the network request is made. */
+  password: string;
+  /** SMS or email verification code obtained via sendCode() */
+  verifyCode: string;
+  /** Country dial code, e.g. '+34' */
+  areaCode?: string;
+  /** ISO region code, e.g. 'ES' */
+  areaNo?: string;
+  emailMarketingAlarm?: boolean;
+}
+
+export interface RegisterResult {
+  token: string;
+  userId?: string;
+  profile: UserProfile;
+}
+
+/**
+ * Request body for POST /common/code/send_code.
+ * Sourced from BaseAccountReq.java in APK decompilation.
+ */
+export interface SendCodeRequest {
+  /** Email address or phone number */
+  idcard: string;
+  areaCode?: string;
+  areaNo?: string;
+}
+
+/**
+ * Request body for POST /common/code/check_code.
+ * Sourced from BaseAccountReq.java in APK decompilation.
+ */
+export interface CheckCodeRequest {
+  /** Email address or phone number */
+  idcard: string;
+  /** Code received via SMS or email */
+  verifyCode: string;
+  areaCode?: string;
+  areaNo?: string;
+}
+
+/**
+ * Request body for POST /auth/user/update_password.
+ * Sourced from UpdatePswReq.java in APK decompilation.
+ * Both passwords are accepted as plaintext and MD5-hashed before sending.
+ */
+export interface UpdatePasswordRequest {
+  /** Current password — MD5-hashed before sending, not persisted. */
+  oldPassword: string;
+  /** New password — MD5-hashed before sending, not persisted. */
+  newPassword: string;
+}
+
 export interface UpdateUserInfoRequest {
   nickName?: string;
   firstName?: string;
