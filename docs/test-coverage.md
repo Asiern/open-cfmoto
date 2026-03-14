@@ -8,13 +8,18 @@ Last updated: 2026-03-14
 
 Run: `pnpm --filter @open-cfmoto/cloud-client test`
 
-| File | Test file | Coverage |
-|------|-----------|----------|
-| `src/signing.ts` | `src/__tests__/signing.test.ts` | MD5(SHA1) signature vector, nonce length/randomness, timestamp in unix ms, required headers, GET query signing (sorted + URL-encoded) |
-| `src/auth.ts` | `src/__tests__/auth.test.ts` | successful login token extraction, invalid credentials -> `CloudAuthError`, `getToken()` pre-login null, login payload shape (`login_by_idcard`), MD5 password normalization |
-| `src/vehicle.ts` | `src/__tests__/vehicle.test.ts` | `getEncryptInfo` parsing + errors, signed request headers, `getUserVehicles` success + malformed response handling |
+75 tests total across 6 suites.
 
-Status: cloud-client unit coverage is in place for the implemented API surface.
+| File | Test file | Tests | Coverage |
+|------|-----------|-------|----------|
+| `src/signing.ts` | `src/__tests__/signing.test.ts` | 5 | MD5(SHA1) signature vector, nonce length/randomness, timestamp in unix ms, required headers, GET query signing (sorted + URL-encoded) |
+| `src/auth.ts` | `src/__tests__/auth.test.ts` | 5 | Successful login token extraction, invalid credentials → `CloudAuthError`, `getToken()` pre-login null, login payload shape, MD5 password normalization |
+| `src/vehicle.ts` | `src/__tests__/vehicle.test.ts` | 22 | `getEncryptInfo` parsing + errors, `getVehicleDetail` full data + virtual vehicle (no encryptInfo), signed headers, `getVehicles` position=2, `getUserVehicles` success + malformed response |
+| `src/user.ts` | `src/__tests__/user.test.ts` | 13 | `getProfile` success + HTTP/API errors + invalid JSON, `updateProfile` body content + PUT method, `updateAreaNo` body + POST method + success=false |
+| `src/account.ts` | `src/__tests__/account.test.ts` | 21 | `register` token extraction + MD5 password assertion + idcardType detection + missing-token error, `sendCode`/`checkCode` void + error paths, `updatePassword` both passwords MD5'd + Authorization header |
+| `src/ride.ts` | `src/__tests__/ride.test.ts` | 19 | `listRides` pagination defaults (pageStart=1, pageSize=20) + optional filters in URL + empty list + data-not-array guard, `getRide` detail fields + id as query param (not path) + invalid JSON, `deleteRide` DELETE method + id in path + success=false |
+
+Status: complete unit coverage for all implemented API surface. All 75 tests passing.
 
 ---
 

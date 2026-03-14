@@ -71,9 +71,12 @@ The `BleTransport` interface in `packages/ble-protocol/src/types.ts` is the seam
 - `packages/ble-protocol/src/types.ts` — All core interfaces (`BikeData`, `BleTransport`, `IBikeProtocol`). Lock these down before changing anything else.
 - `packages/ble-protocol/src/uuids.ts` — Single source of truth for GATT UUIDs. Values updated with **CONFIRMED** UUIDs from APK RE.
 - `packages/ble-protocol/src/codec.ts` — Packet encode/decode. **Confirmed format**: `[0xAB, 0xCD, controlCode, lenLo, lenHi, ...protobuf_payload, checksum_byte_sum, 0xCF]`. Checksum is byte-addition sum (NOT XOR) of bytes[2..end-2]. Payload is Protocol Buffers.
-- `packages/cloud-client/src/config.ts` — Cloud API constants: base URL, endpoints, hardcoded APPID/APPSECRET from APK.
-- `packages/cloud-client/src/auth.ts` — `CloudAuthClient`: login, token storage, signing.
-- `packages/cloud-client/src/vehicle.ts` — `VehicleClient`: `getEncryptInfo()`, `getUserVehicles()`.
+- `packages/cloud-client/src/config.ts` — Cloud API constants: base URL, all endpoints, hardcoded APPID/APPSECRET from APK.
+- `packages/cloud-client/src/auth.ts` — `CloudAuthClient`: login, token storage, refresh stub.
+- `packages/cloud-client/src/vehicle.ts` — `VehicleClient`: `getVehicleDetail()`, `getEncryptInfo()`, `getVehicles()`.
+- `packages/cloud-client/src/user.ts` — `UserClient`: `getProfile()`, `updateProfile()`, `updateAreaNo()`.
+- `packages/cloud-client/src/account.ts` — `AccountClient`: `register()`, `sendCode()`, `checkCode()`, `updatePassword()`. Passwords MD5-hashed before send, never persisted.
+- `packages/cloud-client/src/ride.ts` — `RideClient`: `listRides()`, `getRide()`, `deleteRide()`.
 - `packages/cloud-client/src/signing.ts` — Request signing: `MD5(SHA1(body + params + APPSECRET))`.
 - `apps/mobile/metro.config.js` — Critical monorepo Metro config (`watchFolders` + `nodeModulesPaths`). Breaking this means nothing builds.
 - `apps/mobile/src/services/ble.service.ts` — BLE singleton that bridges protocol → Zustand stores.
@@ -130,7 +133,10 @@ Full docs in `docs/cloud-auth.md`. Key facts for implementation:
 - **Base URL**: `https://tapi.cfmoto-oversea.com/v1.0/` (regional subdomain determined at login, e.g. `tapi-flkf.cfmoto-oversea.com` for EU).
 - **Login**: `POST /fuel-user/serveruser/app/auth/user/login_by_idcard` — `password` as MD5 hex, token in `data.tokenInfo.accessToken`, TTL ≈ 100 days.
 - **BLE keys**: `GET /fuel-vehicle/servervehicle/app/vehicle?vehicleId=<id>` → `data.encryptInfo.{encryptValue, key, iv}`.
-- **Vehicle list**: `GET /fuel-vehicle/servervehicle/app/vehicle/mine?position=1` → `data[]`.
+- **Vehicle list**: `GET /fuel-vehicle/servervehicle/app/vehicle/mine?position=2` → `data[]` (position=2 returns full garage, confirmed in `VehicleGarageActivity.java`).
+- **User profile**: `GET /fuel-user/serveruser/app/auth/user/user_info` → `UserProfile`. Update via `PUT /update_info`.
+- **Account creation**: `POST /register`, `POST /common/code/send_code`, `POST /common/code/check_code`, `POST /update_password`.
+- **Ride history**: `GET /ridehistory/list_v2?vehicleId=&pageStart=&pageSize=` → `RideHistoryItem[]`. Detail: `GET /ridehistory?id=&month=`. Delete: `DELETE /ridehistory/{id}`.
 - **Request signing** (every request): `MD5(SHA1(body + "appId=rRrIs3ID&nonce=<16chars>&timestamp=<ms>" + APPSECRET))` — credentials hardcoded in APK (`APPID=rRrIs3ID`, `APPSECRET=6c1936f85ecb23508c02ceb7a6e3fd0e33eb8bd2`).
 - **Headers**: `Authorization: Bearer <token>`, `user_id`, `lang`, `ZoneId`, `Cfmoto-X-Sign`, `Cfmoto-X-Param`, `Cfmoto-X-Sign-Type: 0`, `appId`, `nonce`, `signature`, `timestamp`.
 

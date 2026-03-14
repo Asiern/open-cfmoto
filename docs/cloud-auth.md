@@ -233,8 +233,9 @@ Base: `fuel-vehicle/servervehicle/`
 | POST | `app/vehicle/bind-v3` | Bearer | Vincular vehículo (primera vez) |
 | GET | `app/vehicle/charge/detail/{vehicleId}` | Bearer | Estado de carga |
 | POST | `app/charging/createScheduleCharging` | Bearer | Programar carga |
-| GET | `app/ridehistory` | Bearer | Historial de rutas |
-| GET | `app/ridehistory/{id}` | Bearer | Detalle de ruta |
+| GET | `app/ridehistory/list_v2?vehicleId=&pageStart=&pageSize=` | Bearer | Lista de rutas (paginada) |
+| GET | `app/ridehistory?id=<id>&month=<yyyy-MM>` | Bearer | Detalle de ruta (query params, no path) |
+| DELETE | `app/ridehistory/{id}` | Bearer | Eliminar ruta |
 | GET | `app/vehicle/update/list` | Bearer | Actualizaciones OTA |
 | POST | `app/vehicle/update/execute` | Bearer | Ejecutar OTA |
 | POST | `app/electricFence` | Bearer | Crear geocerca |
@@ -534,31 +535,66 @@ con `packages/ble-protocol/`.
 
 Implementado en `packages/cloud-client/`:
 
-- `CloudAuthClient.login()`:
+### `CloudAuthClient` (`auth.ts`)
+- `login(username, password)` → `Promise<string>`
   - Endpoint: `POST /fuel-user/serveruser/app/auth/user/login_by_idcard`
-  - `idcardType` auto (`email` o `phone`)
-  - `password` en MD5 hex (rehash solo si no viene ya en formato MD5)
-  - Guarda en memoria `token` y `userId`
-- `CloudAuthClient.refreshToken()`:
-  - Sin endpoint confirmado de refresh en APK/capturas
-  - Devuelve `CloudAuthError` indicando relogin
-- `VehicleClient.getEncryptInfo()`:
-  - Endpoint: `GET /fuel-vehicle/servervehicle/app/vehicle?vehicleId=...`
-  - Firma GET con query params ordenados y URL-encoded
-  - Extrae `encryptInfo` desde `data.encryptInfo` o `data.vehicleInfo.encryptInfo`
-- `VehicleClient.getUserVehicles()`:
-  - Endpoint: `GET /fuel-vehicle/servervehicle/app/vehicle/mine?position=...`
-  - Devuelve lista tipada de vehículos del usuario
-- Integración BLE:
-  - `CFMoto450Protocol.connect(..., cloudCredentials)` ejecuta:
-    1) `login`
-    2) `getEncryptInfo`
-    3) `AuthFlow.authenticate({ encryptValue, key })`
-  - Sin credenciales cloud: modo dev con warning y sin auth
+  - `idcardType` auto-detectado (`email` o `phone`)
+  - `password` normalizado a MD5 hex antes de enviar
+  - Token extraído de `data.tokenInfo.accessToken` (con fallback a `data.token`)
+  - Guarda `token` y `userId` en memoria
+- `refreshToken()` — lanza `CloudAuthError` (no hay endpoint de refresh en el APK)
 
-Integrado también en app móvil (`apps/mobile/src/services/cloud-auth.service.ts`):
+### `VehicleClient` (`vehicle.ts`)
+- `getVehicleDetail(vehicleId, token)` → `Promise<VehicleNowInfoData>`
+  - Endpoint: `GET /fuel-vehicle/servervehicle/app/vehicle?vehicleId=...`
+  - Devuelve datos completos del vehículo (isOnline, lock states, telemetría, geoLocation)
+- `getEncryptInfo(vehicleId, token)` → `Promise<EncryptInfo>`
+  - Mismo endpoint; valida que `encryptInfo` esté presente (lanza si es vehículo virtual)
+- `getVehicles(token)` → `Promise<UserVehicle[]>`
+  - Endpoint: `GET /fuel-vehicle/servervehicle/app/vehicle/mine?position=2`
+  - `position=2` confirmado en `VehicleGarageActivity.java` para lista completa
+
+### `UserClient` (`user.ts`)
+- `getProfile(token)` → `Promise<UserProfile>`
+  - Endpoint: `GET /fuel-user/serveruser/app/auth/user/user_info`
+- `updateProfile(token, req)` → `Promise<UserProfile>`
+  - Endpoint: `PUT /fuel-user/serveruser/app/auth/user/update_info`
+- `updateAreaNo(token, areaNo)` → `Promise<void>`
+  - Endpoint: `POST /fuel-user/serveruser/app/auth/user/updateUserAreaNo`
+
+### `AccountClient` (`account.ts`)
+- `register(req)` → `Promise<RegisterResult>`
+  - Endpoint: `POST /fuel-user/serveruser/app/auth/user/register`
+  - `password` MD5-hasheado antes de enviar; no se persiste
+  - Devuelve `{ token, userId, profile }`
+- `sendCode(req)` → `Promise<void>`
+  - Endpoint: `POST /fuel-user/serveruser/common/code/send_code`
+- `checkCode(req)` → `Promise<void>`
+  - Endpoint: `POST /fuel-user/serveruser/common/code/check_code`
+- `updatePassword(token, req)` → `Promise<void>`
+  - Endpoint: `POST /fuel-user/serveruser/app/auth/user/update_password` (POST, no PUT — confirmado en APK)
+  - `oldPassword` y `newPassword` MD5-hasheados; ninguno se persiste
+
+### `RideClient` (`ride.ts`)
+- `listRides(token, params)` → `Promise<RideHistoryItem[]>`
+  - Endpoint: `GET /fuel-vehicle/servervehicle/app/ridehistory/list_v2`
+  - Params: `vehicleId` (req), `pageStart` (def: 1, 1-indexed), `pageSize` (def: 20), filtros opcionales de fecha
+- `getRide(token, id, month)` → `Promise<RideHistoryDetail>`
+  - Endpoint: `GET /fuel-vehicle/servervehicle/app/ridehistory?id=<id>&month=<yyyy-MM>`
+  - `month` requerido por el servidor para particionar la query (confirmado en APK `@Query`)
+- `deleteRide(token, id)` → `Promise<void>`
+  - Endpoint: `DELETE /fuel-vehicle/servervehicle/app/ridehistory/{id}`
+
+### Integración BLE
+- `CFMoto450Protocol.connect(..., cloudCredentials)` ejecuta:
+  1. `CloudAuthClient.login()`
+  2. `VehicleClient.getEncryptInfo(vehicleId)`
+  3. `AuthFlow.authenticate({ encryptValue, key })`
+- Sin credenciales cloud: modo dev con warning y sin auth
+
+Integrado en app móvil (`apps/mobile/src/services/cloud-auth.service.ts`):
 - Login cloud funcional
-- Consulta de vehículos del usuario funcional
+- Consulta de vehículos funcional
 
 ---
 
