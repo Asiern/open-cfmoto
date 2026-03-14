@@ -91,10 +91,20 @@ export interface PeripheralInfo {
   advertisementDataBase64?: string;
 }
 
+export interface CloudConnectCredentials {
+  username: string;
+  password: string;
+  vehicleId: string;
+}
+
 /** High-level bike protocol interface */
 export interface IBikeProtocol {
   /** Connect to bike and return a cleanup function */
-  connect(transport: BleTransport, peripheralId: string): Promise<() => void>;
+  connect(
+    transport: BleTransport,
+    peripheralId: string,
+    cloudCredentials?: CloudConnectCredentials,
+  ): Promise<() => void>;
 
   /** Subscribe to live telemetry frames */
   onData(callback: (data: BikeData) => void): () => void;

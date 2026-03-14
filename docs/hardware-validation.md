@@ -57,6 +57,22 @@ AES-256/ECB/PKCS7 encryption using the cloud-supplied key has not been validated
 
 ---
 
+### 2.1 Cloud encryptInfo compatibility with real TBox auth
+
+**Uncertainty:** We now fetch `encryptValue` + `key` from cloud (`VehicleNowInfoResp.encryptInfo`)
+and use them in BLE auth. This must be validated end-to-end against real hardware.
+
+**Validate:**
+- Login via cloud API and fetch `GET /fuel-vehicle/servervehicle/app/vehicle/{vehicleId}`
+- Confirm returned `encryptValue` and `key` produce successful BLE auth (`0x5A -> 0x5B -> 0x5C -> 0x5D result=0`)
+- Confirm `iv` can be ignored in this flow (AES/ECB path)
+
+**Result to document:**
+- If auth succeeds: mark cloud-to-BLE key path as hardware-confirmed
+- If auth fails: capture HCI + cloud payload and compare with OEM app session
+
+---
+
 ### 3. DISPLAY_UNITS enum values
 
 **Uncertainty:** `setUnits('metric')` encodes `Display_Units.METRIC = 1` and

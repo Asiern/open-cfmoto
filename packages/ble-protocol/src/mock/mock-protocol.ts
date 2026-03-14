@@ -3,7 +3,7 @@
  * No real BLE hardware required.
  */
 
-import { IBikeProtocol, BleTransport, BikeData } from '../types';
+import { IBikeProtocol, BleTransport, BikeData, CloudConnectCredentials } from '../types';
 
 const TICK_INTERVAL_MS = 500;
 
@@ -53,7 +53,11 @@ export class MockBikeProtocol implements IBikeProtocol {
   private timer: ReturnType<typeof setInterval> | null = null;
   private tick = 0;
 
-  async connect(_transport: BleTransport, _peripheralId: string): Promise<() => void> {
+  async connect(
+    _transport: BleTransport,
+    _peripheralId: string,
+    _cloudCredentials?: CloudConnectCredentials,
+  ): Promise<() => void> {
     this.tick = 0;
     this.timer = setInterval(() => {
       const data = syntheticBikeData(this.tick++);

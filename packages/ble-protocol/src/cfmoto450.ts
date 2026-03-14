@@ -4,7 +4,8 @@
  * com.cfmoto.cfmotointernational. See docs/ for RE findings.
  */
 
-import { IBikeProtocol, BleTransport, BikeData } from './types';
+import { CloudAuthClient, VehicleClient } from '@open-cfmoto/cloud-client';
+import { IBikeProtocol, BleTransport, BikeData, CloudConnectCredentials } from './types';
 import { SERVICE_MAIN, CHAR_NOTIFY, CHAR_WRITE } from './uuids';
 import { AuthFlow, AuthCredentials } from './auth';
 import { ResponseRouter } from './response-router';
@@ -18,11 +19,21 @@ export class CFMoto450Protocol implements IBikeProtocol {
   private unsubscribeNotify: (() => void) | null = null;
   /** Active auth router — non-null only while authentication is in progress */
   private authRouter: ResponseRouter | null = null;
+  private readonly cloudAuthClient: Pick<CloudAuthClient, 'login'>;
+  private readonly vehicleClient: Pick<VehicleClient, 'getEncryptInfo'>;
+
+  constructor(clients?: {
+    cloudAuthClient?: Pick<CloudAuthClient, 'login'>;
+    vehicleClient?: Pick<VehicleClient, 'getEncryptInfo'>;
+  }) {
+    this.cloudAuthClient = clients?.cloudAuthClient ?? new CloudAuthClient();
+    this.vehicleClient = clients?.vehicleClient ?? new VehicleClient();
+  }
 
   async connect(
     transport: BleTransport,
     peripheralId: string,
-    credentials?: AuthCredentials,
+    cloudCredentials?: CloudConnectCredentials,
   ): Promise<() => void> {
     this.transport = transport;
     this.peripheralId = peripheralId;
@@ -55,7 +66,21 @@ export class CFMoto450Protocol implements IBikeProtocol {
     // Applied on both MTU success and failure paths.
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    if (credentials) {
+    if (cloudCredentials) {
+      const token = await this.cloudAuthClient.login(
+        cloudCredentials.username,
+        cloudCredentials.password,
+      );
+      const encryptInfo = await this.vehicleClient.getEncryptInfo(
+        cloudCredentials.vehicleId,
+        token,
+      );
+
+      const credentials: AuthCredentials = {
+        encryptValue: encryptInfo.encryptValue,
+        key: encryptInfo.key,
+      };
+
       const router = new ResponseRouter();
       this.authRouter = router;
       const sendFn = (frame: Uint8Array) =>
@@ -68,7 +93,7 @@ export class CFMoto450Protocol implements IBikeProtocol {
         this.authRouter = null;
       }
     } else {
-      console.warn('[CFMoto] No auth credentials provided — skipping auth (dev mode)');
+      console.warn('[CFMoto] No cloud credentials provided — skipping auth (dev mode)');
     }
 
     return () => this.cleanup();

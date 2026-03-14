@@ -372,3 +372,33 @@ Cuando termines, en Android:
 
 - **`cfmoto_virtual_vehicle_token`**: token hardcodeado usado antes del login.
   Podría dar acceso a endpoints públicos sin autenticación.
+
+---
+
+## Decisiones de implementacion (open-cfmoto)
+
+Estas decisiones reflejan la implementacion en `packages/cloud-client/` y la integracion
+con `packages/ble-protocol/`.
+
+- Se centralizaron constantes y endpoints en `packages/cloud-client/src/config.ts`.
+- El signing implementa `MD5(SHA1(body + params + APPSECRET))`, con:
+  - `body = JSON.stringify(body)` para requests con body
+  - `body = ""` para requests sin body (ej. GET)
+- `nonce` en la implementacion actual: **8 caracteres** (requisito de este bloque),
+  aunque el APK original usa 16.
+- Se envian headers de firma compatibles:
+  - `appId`, `nonce`, `timestamp`, `sign`
+  - `signature`, `Cfmoto-X-Param`, `Cfmoto-X-Sign`, `Cfmoto-X-Sign-Type`
+- Login cloud implementado sobre:
+  - `POST /fuel-user/serveruser/app/auth/user/login`
+- Vehicle lookup implementado sobre:
+  - `GET /fuel-vehicle/servervehicle/app/vehicle/{vehicleId}`
+- No se persiste password:
+  - No se escribe en disco (MMKV/SQLite/etc.)
+  - No se guarda en estado de larga vida del cliente cloud
+- `refreshToken()`:
+  - No hay endpoint de refresh confirmado en el APK/documentacion
+  - Se lanza `CloudAuthError` indicando repetir `login()`
+- Campo `iv`:
+  - Se mantiene en tipos y respuesta cloud para trazabilidad
+  - En BLE auth actual se ignora porque el flujo confirmado usa `AES/ECB/PKCS7` (sin IV)

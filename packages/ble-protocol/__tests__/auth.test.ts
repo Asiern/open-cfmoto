@@ -355,7 +355,7 @@ describe('CFMoto450Protocol — no credentials', () => {
     await connectPromise;
 
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('No auth credentials provided'),
+      expect.stringContaining('No cloud credentials provided'),
     );
 
     // write() should never have been called (no 0x5A frame sent)
