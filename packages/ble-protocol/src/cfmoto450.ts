@@ -8,17 +8,21 @@ import { CloudAuthClient, VehicleClient } from '@open-cfmoto/cloud-client';
 import { IBikeProtocol, BleTransport, BikeData, CloudConnectCredentials } from './types';
 import { SERVICE_MAIN, CHAR_NOTIFY, CHAR_WRITE } from './uuids';
 import { AuthFlow, AuthCredentials } from './auth';
-import { ResponseRouter } from './response-router';
+import { ControlCode, ResponseRouter } from './response-router';
+import { CommandResult } from './generated/meter';
 
 export { AuthCredentials } from './auth';
 
 export class CFMoto450Protocol implements IBikeProtocol {
   private listeners: Array<(data: BikeData) => void> = [];
+  private lockListeners: Array<(state: 'locked' | 'unlocked' | 'unknown') => void> = [];
   private transport: BleTransport | null = null;
   private peripheralId: string | null = null;
   private unsubscribeNotify: (() => void) | null = null;
   /** Active auth router — non-null only while authentication is in progress */
   private authRouter: ResponseRouter | null = null;
+  /** Live data router — active after connect, dispatches all post-auth notifications */
+  private readonly liveRouter = new ResponseRouter();
   private readonly cloudAuthClient: Pick<CloudAuthClient, 'login'> & {
     getUserId?: () => string | null;
   };
@@ -128,6 +132,28 @@ export class CFMoto450Protocol implements IBikeProtocol {
     };
   }
 
+  onLockState(callback: (state: 'locked' | 'unlocked' | 'unknown') => void): () => void {
+    this.lockListeners.push(callback);
+    const unregister = this.liveRouter.register(ControlCode.LOCK_RESULT, (payload) => {
+      try {
+        const result = CommandResult.decode(payload);
+        const { errRes } = result;
+        if (errRes === 0 || errRes === 1) {
+          callback('unlocked');
+        } else if (errRes === 16 || errRes === 17) {
+          callback('locked');
+        }
+        // 32/33 = powerOn, 48/49 = powerOff — ignore for lock state
+      } catch {
+        // ignore malformed frames
+      }
+    });
+    return () => {
+      this.lockListeners = this.lockListeners.filter((l) => l !== callback);
+      unregister();
+    };
+  }
+
   async sendCommand(command: Uint8Array): Promise<void> {
     if (!this.transport || !this.peripheralId) {
       throw new Error('Not connected');
@@ -144,7 +170,8 @@ export class CFMoto450Protocol implements IBikeProtocol {
   private handleNotification(data: Uint8Array): void {
     // Dispatch incoming frames to the auth router while auth is in progress
     this.authRouter?.dispatch(data);
-    // TODO(block2): wire to telemetry ResponseRouter + proto decode
+    // Dispatch all frames to the live router for post-auth handlers
+    this.liveRouter.dispatch(data);
   }
 
   private cleanup(): void {

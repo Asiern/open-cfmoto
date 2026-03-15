@@ -36,6 +36,11 @@
       ],
       "package": "dev.opencfmoto.app"
     },
+    "androidStatusBar": {
+      "backgroundColor": "#000000",
+      "barStyle": "light-content",
+      "translucent": false
+    },
     "plugins": [
       "expo-router",
       "expo-font",

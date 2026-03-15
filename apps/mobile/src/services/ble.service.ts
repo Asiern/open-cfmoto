@@ -15,6 +15,7 @@ export class BleService {
   private transport: BleTransport | null = null;
   private disconnectFn: (() => void) | null = null;
   private unsubscribeData: (() => void) | null = null;
+  private unsubscribeLock: (() => void) | null = null;
 
   /** Call once at app start */
   initialize(useMock: boolean): void {
@@ -61,6 +62,9 @@ export class BleService {
       this.unsubscribeData = this.protocol.onData((data) => {
         useBikeStore.getState().updateBikeData(data);
       });
+      this.unsubscribeLock = this.protocol.onLockState((state) => {
+        useBikeStore.getState().setLockState(state);
+      });
       useBikeStore.getState().setConnectionState('connected');
       useBikeStore.getState().setConnectedPeripheral(peripheralId);
     } catch (e) {
@@ -71,8 +75,10 @@ export class BleService {
 
   disconnect(): void {
     this.unsubscribeData?.();
+    this.unsubscribeLock?.();
     this.disconnectFn?.();
     this.unsubscribeData = null;
+    this.unsubscribeLock = null;
     this.disconnectFn = null;
     useBikeStore.getState().reset();
   }

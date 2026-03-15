@@ -11,6 +11,7 @@ export interface BleAuthRecord {
   idcard: string | null;
   userId: string | null;
   savedAt: number;
+  vehicleName?: string;
 }
 
 export const bleAuthStorage = new MMKV({ id: 'open-cfmoto-ble-auth' });
