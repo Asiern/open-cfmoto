@@ -98,8 +98,6 @@ describe('AuthFlow', () => {
     const plaintext = 'challenge_response';
     const cipherBytes = aesEncrypt(plaintext, TEST_KEY);
     const cipherHex = hexEncode(cipherBytes);
-    // TboxRandomNum.codec = UTF-8 bytes of the hex ciphertext string
-    const codecBytes = new TextEncoder().encode(cipherHex);
 
     const authPromise = auth.authenticate({ encryptValue, key: TEST_KEY });
 
@@ -118,7 +116,7 @@ describe('AuthFlow', () => {
     expect(Array.from(authPkg.info)).toEqual(Array.from(hexDecode(encryptValue)));
 
     // Complete the handshake so the promise doesn't hang
-    const randomNumMsg = TboxRandomNum.fromPartial({ codec: codecBytes });
+    const randomNumMsg = TboxRandomNum.fromPartial({ codec: cipherHex });
     const step2Frame = buildBikeFrame(
       ControlCode.TBOX_RANDOM_NUM,
       TboxRandomNum.encode(randomNumMsg).finish(),
@@ -143,7 +141,6 @@ describe('AuthFlow', () => {
     const plaintext = 'challenge_response_sn_12345';
     const cipherBytes = aesEncrypt(plaintext, TEST_KEY);
     const cipherHex = hexEncode(cipherBytes);
-    const codecBytes = new TextEncoder().encode(cipherHex);
 
     const authPromise = auth.authenticate({ encryptValue: 'aabbccdd', key: TEST_KEY });
 
@@ -151,7 +148,7 @@ describe('AuthFlow', () => {
     await Promise.resolve();
 
     // Simulate bike sending 0x5B TboxRandomNum
-    const randomNumMsg = TboxRandomNum.fromPartial({ codec: codecBytes });
+    const randomNumMsg = TboxRandomNum.fromPartial({ codec: cipherHex });
     const step2Frame = buildBikeFrame(
       ControlCode.TBOX_RANDOM_NUM,
       TboxRandomNum.encode(randomNumMsg).finish(),
@@ -189,7 +186,6 @@ describe('AuthFlow', () => {
     const plaintext = 'test_sn';
     const cipherBytes = aesEncrypt(plaintext, TEST_KEY);
     const cipherHex = hexEncode(cipherBytes);
-    const codecBytes = new TextEncoder().encode(cipherHex);
 
     const authPromise = auth.authenticate({ encryptValue: 'cafe', key: TEST_KEY });
     await Promise.resolve();
@@ -198,7 +194,7 @@ describe('AuthFlow', () => {
     router.dispatch(
       buildBikeFrame(
         ControlCode.TBOX_RANDOM_NUM,
-        TboxRandomNum.encode(TboxRandomNum.fromPartial({ codec: codecBytes })).finish(),
+        TboxRandomNum.encode(TboxRandomNum.fromPartial({ codec: cipherHex })).finish(),
       ),
     );
     await Promise.resolve();
@@ -221,7 +217,6 @@ describe('AuthFlow', () => {
     const plaintext = 'test_sn';
     const cipherBytes = aesEncrypt(plaintext, TEST_KEY);
     const cipherHex = hexEncode(cipherBytes);
-    const codecBytes = new TextEncoder().encode(cipherHex);
 
     const authPromise = auth.authenticate({ encryptValue: 'cafe', key: TEST_KEY });
     await Promise.resolve();
@@ -230,7 +225,7 @@ describe('AuthFlow', () => {
     router.dispatch(
       buildBikeFrame(
         ControlCode.TBOX_RANDOM_NUM,
-        TboxRandomNum.encode(TboxRandomNum.fromPartial({ codec: codecBytes })).finish(),
+        TboxRandomNum.encode(TboxRandomNum.fromPartial({ codec: cipherHex })).finish(),
       ),
     );
     await Promise.resolve();
@@ -268,7 +263,6 @@ describe('AuthFlow', () => {
     const plaintext = 'test_sn';
     const cipherBytes = aesEncrypt(plaintext, TEST_KEY);
     const cipherHex = hexEncode(cipherBytes);
-    const codecBytes = new TextEncoder().encode(cipherHex);
 
     const authPromise = auth.authenticate({ encryptValue: 'aabb', key: TEST_KEY });
     await Promise.resolve();
@@ -277,7 +271,7 @@ describe('AuthFlow', () => {
     router.dispatch(
       buildBikeFrame(
         ControlCode.TBOX_RANDOM_NUM,
-        TboxRandomNum.encode(TboxRandomNum.fromPartial({ codec: codecBytes })).finish(),
+        TboxRandomNum.encode(TboxRandomNum.fromPartial({ codec: cipherHex })).finish(),
       ),
     );
     await Promise.resolve();

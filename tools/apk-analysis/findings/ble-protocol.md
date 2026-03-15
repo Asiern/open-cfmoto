@@ -390,3 +390,38 @@ See `connection-flow.md` for detailed sequence. Brief:
 - **Scan mode**: `SCAN_MODE_LOW_LATENCY` (mode 2), report delay 0, hardware batching enabled.
 - **Scan timeout**: 15000 ms for youth devices.
 - **Reconnect delay**: 5000 ms on passive disconnect, 10000 ms on connect fail (youth path). 2000–5500 ms on TBox path.
+
+---
+
+## 8. Control Code ↔ Protobuf Message Mapping (450-series TBox)
+
+Confirmed from `TboxControlCode.java` and `BleModel.java`. All messages are in `com.cfmoto.proto.Meter`.
+
+| Code | Direction | Protobuf Message |
+|------|-----------|-----------------|
+| `0x0A` | App→Bike | `Operate4g` |
+| `0x0B` | App→Bike | `ChargeStatus` |
+| `0x0C` | App→Bike | `Operate4gComplex` |
+| `0x15` | App→Bike | `PatchObtainInfoControl` |
+| `0x5A` | App→Bike | `AuthPackage` |
+| `0x5B` | Bike→App | `TboxRandomNum` |
+| `0x5C` | App→Bike | `RandomNum` |
+| `0x5D` | Bike→App | `TboxAuthResult` |
+| `0x65` | App→Bike | `Theme` |
+| `0x66` | App→Bike | `Navi` |
+| `0x67` | App→Bike | `Lock` or `Heartbeat` (ping=1 for heartbeat) |
+| `0x68` | App→Bike | `Preference` |
+| `0x69` | App→Bike | `Display` |
+| `0x6A` | App→Bike | `FindCar` |
+| `0x6B` | App→Bike | `LightControl` |
+| `0x6C` | App→Bike | `Heartbeat` (keep-alive) |
+| `0x71` | App→Bike | `ChargeSetting` |
+| `0x79` | App→Bike | `KL15` |
+| `0x8A` | Bike→App | `CommandResult2` |
+| `0x8B` | Bike→App | `CommandResult` |
+| `0x8C` | Bike→App | `CommandResult2` |
+| `0x95` | Bike→App | `PatchObtainInfoResult` |
+| `0xE7` | Bike→App | `CommandResult` |
+| `0xEA` | Bike→App | `CommandResult` |
+| `0xEB` | Bike→App | `CommandResult` |
+| `0xF9` | Bike→App | `CommandResult` |
