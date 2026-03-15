@@ -1,5 +1,13 @@
 import CryptoJS from 'crypto-js';
-import { CLOUD_CONFIG, COMMON_HEADERS, resolveAreaNo, resolveLangHeader, resolveZoneId } from './config';
+import {
+  CLOUD_CONFIG,
+  COMMON_HEADERS,
+  resolveAppInfoHeader,
+  resolveAreaNo,
+  resolveLangHeader,
+  resolveUserAgentHeader,
+  resolveZoneId,
+} from './config';
 import { buildSignedHeaders } from './signing';
 import {
   CheckCodeRequest,
@@ -15,6 +23,42 @@ import {
 
 function joinUrl(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+function isAuthDebugEnabled(): boolean {
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  return env?.EXPO_PUBLIC_CLOUD_DEBUG_AUTH === '1' || env?.CLOUD_DEBUG_AUTH === '1';
+}
+
+function logAuthDebug(event: string, payload: unknown): void {
+  if (!isAuthDebugEnabled()) return;
+  console.log(`[cloud-client][account] ${event}`, payload);
+}
+
+function debugHeaderSnapshot(headers: Headers): Record<string, string> {
+  const keys = [
+    'Authorization',
+    'user_id',
+    'lang',
+    'ZoneId',
+    'appId',
+    'nonce',
+    'timestamp',
+    'sign',
+    'signature',
+    'Cfmoto-X-Sign',
+    'Cfmoto-X-Param',
+    'Cfmoto-X-Sign-Type',
+    'X-App-Info',
+    'User-Agent',
+    'Content-Type',
+  ];
+  const out: Record<string, string> = {};
+  for (const key of keys) {
+    const value = headers.get(key);
+    if (value !== null) out[key] = value;
+  }
+  return out;
 }
 
 function detectIdcardType(idcard: string): string {
@@ -71,8 +115,11 @@ export class AccountClient {
     const headers = new Headers(signed);
     headers.set('Content-Type', COMMON_HEADERS['Content-Type']);
     headers.set('Authorization', `Bearer ${CLOUD_CONFIG.VIRTUAL_VEHICLE_TOKEN}`);
+    headers.set('user_id', '');
     headers.set('lang', resolveLangHeader());
     headers.set('ZoneId', resolveZoneId());
+    headers.set('X-App-Info', resolveAppInfoHeader());
+    headers.set('User-Agent', resolveUserAgentHeader());
     return headers;
   }
 
@@ -81,8 +128,11 @@ export class AccountClient {
     const headers = new Headers(signed);
     headers.set('Content-Type', COMMON_HEADERS['Content-Type']);
     headers.set('Authorization', `Bearer ${token}`);
+    headers.set('user_id', '');
     headers.set('lang', resolveLangHeader());
     headers.set('ZoneId', resolveZoneId());
+    headers.set('X-App-Info', resolveAppInfoHeader());
+    headers.set('User-Agent', resolveUserAgentHeader());
     return headers;
   }
 
@@ -140,12 +190,14 @@ export class AccountClient {
       idcardType: detectIdcardType(req.idcard),
       verifyCode: '',
       areaCode: normalizeAreaCode(req.areaCode),
-      areaNo: req.areaNo ?? resolveAreaNo(),
+      // APK send_code requests default to empty areaNo unless explicitly set.
+      areaNo: req.areaNo ?? '',
       emailMarketingAlarm: false,
     };
 
     const headers = this.buildUnauthHeaders(body);
     const url = joinUrl(this.baseUrl, CLOUD_CONFIG.ENDPOINTS.SEND_CODE);
+    logAuthDebug('sendCode request', { url, method: 'POST', body, headers: debugHeaderSnapshot(headers) });
 
     const resp = await fetch(url, {
       method: 'POST',
@@ -157,10 +209,12 @@ export class AccountClient {
     try {
       payload = (await resp.json()) as CloudErrorPayload;
     } catch {
+      logAuthDebug('sendCode response', { status: resp.status, ok: resp.ok, payload: 'INVALID_JSON' });
       throw new CloudAuthError('Send code request failed: invalid JSON response', {
         status: resp.status,
       });
     }
+    logAuthDebug('sendCode response', { status: resp.status, ok: resp.ok, payload });
 
     if (isApiError(resp, payload)) {
       throw buildError(resp, payload, 'Send code rejected');
@@ -173,12 +227,14 @@ export class AccountClient {
       idcardType: detectIdcardType(req.idcard),
       verifyCode: req.verifyCode,
       areaCode: normalizeAreaCode(req.areaCode),
-      areaNo: req.areaNo ?? resolveAreaNo(),
+      // APK check_code requests default to empty areaNo unless explicitly set.
+      areaNo: req.areaNo ?? '',
       emailMarketingAlarm: false,
     };
 
     const headers = this.buildUnauthHeaders(body);
     const url = joinUrl(this.baseUrl, CLOUD_CONFIG.ENDPOINTS.CHECK_CODE);
+    logAuthDebug('checkCode request', { url, method: 'POST', body, headers: debugHeaderSnapshot(headers) });
 
     const resp = await fetch(url, {
       method: 'POST',
@@ -190,10 +246,12 @@ export class AccountClient {
     try {
       payload = (await resp.json()) as CloudErrorPayload;
     } catch {
+      logAuthDebug('checkCode response', { status: resp.status, ok: resp.ok, payload: 'INVALID_JSON' });
       throw new CloudAuthError('Check code request failed: invalid JSON response', {
         status: resp.status,
       });
     }
+    logAuthDebug('checkCode response', { status: resp.status, ok: resp.ok, payload });
 
     if (isApiError(resp, payload)) {
       throw buildError(resp, payload, 'Code verification rejected');

@@ -184,8 +184,22 @@ describe('AccountClient', () => {
       const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string);
       expect(body.idcard).toBe('user@test.com');
       expect(body.idcardType).toBe('email');
-      expect(body.areaCode).toBe('+34');
+      expect(body.areaCode).toBe('34');
       expect(body.areaNo).toBe('ES');
+    });
+
+    test('usa areaNo vacío por defecto cuando no se especifica', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ code: '0', data: null }),
+      } as Response);
+
+      const client = new AccountClient('https://example.test/v1.0');
+      await client.sendCode({ idcard: 'user@test.com' });
+
+      const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string);
+      expect(body.areaNo).toBe('');
     });
 
     test('lanza CloudAuthError en error HTTP', async () => {
@@ -244,6 +258,20 @@ describe('AccountClient', () => {
       const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string);
       expect(body.verifyCode).toBe('999888');
       expect(body.idcard).toBe('user@test.com');
+    });
+
+    test('usa areaNo vacío por defecto cuando no se especifica', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ code: '0', data: null }),
+      } as Response);
+
+      const client = new AccountClient('https://example.test/v1.0');
+      await client.checkCode({ idcard: 'user@test.com', verifyCode: '123456' });
+
+      const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string);
+      expect(body.areaNo).toBe('');
     });
 
     test('lanza CloudAuthError con código incorrecto', async () => {

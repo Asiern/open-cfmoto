@@ -1,7 +1,23 @@
+const envBaseUrl =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+    ?.EXPO_PUBLIC_CLOUD_BASE_URL ??
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+    ?.CLOUD_BASE_URL;
+const envAppInfo =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+    ?.EXPO_PUBLIC_CLOUD_APP_INFO ??
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+    ?.CLOUD_APP_INFO;
+const envUserAgent =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+    ?.EXPO_PUBLIC_CLOUD_USER_AGENT ??
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+    ?.CLOUD_USER_AGENT;
+
 export const CLOUD_CONFIG = {
   APP_ID: 'rRrIs3ID',
   APP_SECRET: '6c1936f85ecb23508c02ceb7a6e3fd0e33eb8bd2',
-  BASE_URL: 'https://tapi.cfmoto-oversea.com/v1.0',
+  BASE_URL: (envBaseUrl?.trim().replace(/\/$/, '') || 'https://tapi.cfmoto-oversea.com/v1.0'),
   ENDPOINTS: {
     LOGIN: '/fuel-user/serveruser/app/auth/user/login_by_idcard',
     VEHICLE_BY_ID: '/fuel-vehicle/servervehicle/app/vehicle',
@@ -51,6 +67,20 @@ export function resolveZoneId(): string {
 export function resolveLangHeader(): string {
   const locale = Intl.DateTimeFormat().resolvedOptions().locale || 'en-US';
   return locale.replace('-', '_');
+}
+
+export function resolveAppInfoHeader(): string {
+  if (envAppInfo?.trim()) {
+    return envAppInfo.trim();
+  }
+  return 'MOBILE|Android|16|CFMOTO_INTERNATIONAL_APP|2.2.5';
+}
+
+export function resolveUserAgentHeader(): string {
+  if (envUserAgent?.trim()) {
+    return envUserAgent.trim();
+  }
+  return resolveAppInfoHeader();
 }
 
 export function resolveAreaNo(): string {
