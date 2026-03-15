@@ -19,15 +19,17 @@ export function MetricCard({ label, value, unit, large = false }: MetricCardProp
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
     borderRadius: 10,
     padding: 12,
     minWidth: '45%',
     flex: 1,
   },
   cardLarge: { width: '100%', flex: 0 },
-  label: { color: '#888', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 },
+  label: { color: '#9ca3af', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 },
   value: { color: '#fff', fontSize: 28, fontWeight: 'bold', marginTop: 4 },
   valueLarge: { fontSize: 56 },
-  unit: { color: '#FF6600', fontSize: 13, marginTop: 2 },
+  unit: { color: '#8fb4ff', fontSize: 13, marginTop: 2 },
 });

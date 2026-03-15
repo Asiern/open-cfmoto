@@ -77,6 +77,10 @@ export class MockBikeProtocol implements IBikeProtocol {
     };
   }
 
+  onLockState(_callback: (state: 'locked' | 'unlocked' | 'unknown') => void): () => void {
+    return () => {};
+  }
+
   async sendCommand(_command: Uint8Array): Promise<void> {
     // No-op in mock
   }

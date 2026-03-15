@@ -115,6 +115,9 @@ export interface IBikeProtocol {
   /** Subscribe to live telemetry frames */
   onData(callback: (data: BikeData) => void): () => void;
 
+  /** Subscribe to lock state changes from LOCK_RESULT (0xE7) frames */
+  onLockState(callback: (state: 'locked' | 'unlocked' | 'unknown') => void): () => void;
+
   /** Send a raw command (for testing) */
   sendCommand(command: Uint8Array): Promise<void>;
 }

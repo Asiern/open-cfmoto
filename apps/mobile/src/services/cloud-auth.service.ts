@@ -227,6 +227,7 @@ class CloudAuthService {
           key: encryptInfo.key,
           idcard,
           userId,
+          vehicleName: vehicle.vehicleName,
         });
       } catch (error) {
         console.warn(`[cloud-auth] Failed to cache BLE key for vehicle ${vehicleId}:`, error);

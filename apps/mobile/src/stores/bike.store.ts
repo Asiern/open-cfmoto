@@ -21,10 +21,12 @@ interface BikeState {
   lastHeartbeatAck: number | null;
   /** FIFO log of the last 20 outgoing commands. */
   commandHistory: CommandHistoryEntry[];
+  lockState: 'locked' | 'unlocked' | 'unknown';
 
   setConnectionState: (state: ConnectionState) => void;
   setConnectedPeripheral: (id: string | null) => void;
   updateBikeData: (data: BikeData) => void;
+  setLockState: (state: 'locked' | 'unlocked' | 'unknown') => void;
   /**
    * Record a heartbeat ACK. Call from the ResponseRouter handler for
    * KEEP_ALIVE_RESULT (0xEC) or LOCK_RESULT (0xE7) — TBD from live traffic.
@@ -48,10 +50,12 @@ export const useBikeStore = create<BikeState>()(
     bikeData: null,
     lastHeartbeatAck: null,
     commandHistory: [],
+    lockState: 'unknown',
 
     setConnectionState: (state) => set((s) => { s.connectionState = state; }),
     setConnectedPeripheral: (id) => set((s) => { s.connectedPeripheralId = id; }),
     updateBikeData: (data) => set((s) => { s.bikeData = data; }),
+    setLockState: (state) => set((s) => { s.lockState = state; }),
 
     recordHeartbeatAck: () => set((s) => { s.lastHeartbeatAck = Date.now(); }),
 
@@ -79,6 +83,7 @@ export const useBikeStore = create<BikeState>()(
       s.bikeData = null;
       s.lastHeartbeatAck = null;
       s.commandHistory = [];
+      s.lockState = 'unknown';
     }),
   })),
 );
