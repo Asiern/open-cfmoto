@@ -79,4 +79,18 @@ describe('CloudAuthClient', () => {
     const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
     expect(JSON.parse(requestInit.body as string).password).toBe(md5Password);
   });
+
+  test('login() permite forzar areaNo explícito', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ code: '0', data: { tokenInfo: { accessToken: 'tok' } } }),
+    } as Response);
+
+    const client = new CloudAuthClient('https://example.test/v1.0');
+    await client.login('john@example.com', 'pw', { areaNo: 'US' });
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(requestInit.body as string).areaNo).toBe('US');
+  });
 });

@@ -1,6 +1,17 @@
-import { AccountClient, CloudAuthClient, RegisterRequest, UserVehicle, VehicleClient } from '@open-cfmoto/cloud-client';
+import {
+  AccountClient,
+  CLOUD_CONFIG,
+  CloudAuthClient,
+  LoginArea,
+  RegionClient,
+  RegisterRequest,
+  UserVehicle,
+  VehicleClient,
+  resolveBaseUrlFromRegionDomain,
+} from '@open-cfmoto/cloud-client';
 import { useAuthStore } from '../stores/auth.store';
 import { useBleAuthStore } from '../stores/ble-auth.store';
+import { useRegionStore } from '../stores/region.store';
 
 export interface CloudLoginResult {
   token: string;
@@ -24,12 +35,53 @@ function normalizePhoneAreaCode(areaCode?: string): string | undefined {
 }
 
 class CloudAuthService {
-  private readonly authClient = new CloudAuthClient();
-  private readonly accountClient = new AccountClient();
-  private readonly vehicleClient = new VehicleClient();
+  private readonly regionClient = new RegionClient();
+
+  private resolveActiveBaseUrl(): string {
+    const selected = useRegionStore.getState().selected;
+    return selected?.domain ? resolveBaseUrlFromRegionDomain(selected.domain) : CLOUD_CONFIG.BASE_URL;
+  }
+
+  private buildAuthClient(): CloudAuthClient {
+    return new CloudAuthClient(this.resolveActiveBaseUrl());
+  }
+
+  private buildAccountClient(): AccountClient {
+    return new AccountClient(this.resolveActiveBaseUrl());
+  }
+
+  private buildVehicleClient(): VehicleClient {
+    return new VehicleClient(this.resolveActiveBaseUrl());
+  }
+
+  async fetchLoginAreas(force = false): Promise<LoginArea[]> {
+    const state = useRegionStore.getState();
+    if (!force && state.available.length > 0) {
+      return state.available;
+    }
+    const areas = await this.regionClient.listLoginAreas();
+    const sorted = [...areas].sort((a, b) => {
+      const aKey = (a.countrySortedKey || a.countryENUS || a.country || a.areaNo || '').toUpperCase();
+      const bKey = (b.countrySortedKey || b.countryENUS || b.country || b.areaNo || '').toUpperCase();
+      return aKey.localeCompare(bKey);
+    });
+    useRegionStore.getState().setAvailable(sorted);
+    return sorted;
+  }
+
+  selectLoginArea(area: LoginArea | null): void {
+    useRegionStore.getState().setSelected(area);
+  }
+
+  getSelectedLoginArea(): LoginArea | null {
+    return useRegionStore.getState().selected;
+  }
+
   async login(username: string, password: string): Promise<CloudLoginResult> {
-    const token = await this.authClient.login(username, password);
-    const userId = this.authClient.getUserId();
+    const selected = this.getSelectedLoginArea();
+    const authClient = this.buildAuthClient();
+    const token = await authClient.login(username, password, { areaNo: selected?.areaNo });
+    const userId = authClient.getUserId();
     useAuthStore.getState().setSession({ token, userId, idcard: username });
     this.cacheBleAuthKeys(token, userId, username).catch((err) => {
       console.warn('[cloud-auth] Could not pre-cache BLE auth keys:', err);
@@ -41,13 +93,16 @@ class CloudAuthService {
   }
 
   async register(req: RegisterRequest): Promise<CloudLoginResult> {
+    const accountClient = this.buildAccountClient();
+    const selected = this.getSelectedLoginArea();
     const normalizedReq: RegisterRequest = {
       ...req,
       areaCode: isEmailIdcard(req.idcard)
         ? req.areaCode
         : normalizePhoneAreaCode(req.areaCode),
+      areaNo: req.areaNo ?? selected?.areaNo,
     };
-    const result = await this.accountClient.register(normalizedReq);
+    const result = await accountClient.register(normalizedReq);
     useAuthStore
       .getState()
       .setSession({ token: result.token, userId: result.userId ?? null, idcard: req.idcard });
@@ -64,11 +119,13 @@ class CloudAuthService {
     idcard: string,
     options?: { areaCode?: string; areaNo?: string },
   ): Promise<void> {
+    const accountClient = this.buildAccountClient();
+    const selected = this.getSelectedLoginArea();
     const isEmail = isEmailIdcard(idcard);
-    await this.accountClient.sendCode({
+    await accountClient.sendCode({
       idcard,
       areaCode: isEmail ? options?.areaCode : normalizePhoneAreaCode(options?.areaCode),
-      areaNo: options?.areaNo,
+      areaNo: options?.areaNo ?? selected?.areaNo,
     });
   }
 
@@ -77,12 +134,14 @@ class CloudAuthService {
     verifyCode: string,
     options?: { areaCode?: string; areaNo?: string },
   ): Promise<void> {
+    const accountClient = this.buildAccountClient();
+    const selected = this.getSelectedLoginArea();
     const isEmail = isEmailIdcard(idcard);
-    await this.accountClient.checkCode({
+    await accountClient.checkCode({
       idcard,
       verifyCode,
       areaCode: isEmail ? options?.areaCode : normalizePhoneAreaCode(options?.areaCode),
-      areaNo: options?.areaNo,
+      areaNo: options?.areaNo ?? selected?.areaNo,
     });
   }
 
@@ -97,14 +156,19 @@ class CloudAuthService {
     verifyCode?: string,
     options?: { areaCode?: string; areaNo?: string },
   ): Promise<void> {
+    const accountClient = this.buildAccountClient();
+    const selected = this.getSelectedLoginArea();
     if (verifyCode?.trim()) {
       await this.checkVerificationCode(idcard, verifyCode.trim(), options);
     }
-    const token = await this.authClient.login(idcard, currentPassword);
+    const authClient = this.buildAuthClient();
+    const token = await authClient.login(idcard, currentPassword, {
+      areaNo: options?.areaNo ?? selected?.areaNo,
+    });
     useAuthStore
       .getState()
-      .setSession({ token, userId: this.authClient.getUserId(), idcard });
-    await this.accountClient.updatePassword(token, {
+      .setSession({ token, userId: authClient.getUserId(), idcard });
+    await accountClient.updatePassword(token, {
       oldPassword: currentPassword,
       newPassword,
     });
@@ -136,7 +200,8 @@ class CloudAuthService {
     if (!session.token) {
       throw new Error('Cloud session not initialized. Run login() first.');
     }
-    return this.vehicleClient.getUserVehicles(session.token, session.userId, position);
+    const vehicleClient = this.buildVehicleClient();
+    return vehicleClient.getUserVehicles(session.token, session.userId, position);
   }
 
   private async cacheBleAuthKeys(
@@ -144,12 +209,13 @@ class CloudAuthService {
     userId: string | null,
     idcard: string | null,
   ): Promise<void> {
-    const vehicles = await this.vehicleClient.getVehicles(token);
+    const vehicleClient = this.buildVehicleClient();
+    const vehicles = await vehicleClient.getVehicles(token);
     for (const vehicle of vehicles) {
       const vehicleId = vehicle.vehicleId;
       if (!vehicleId) continue;
       try {
-        const detail = await this.vehicleClient.getVehicleDetail(vehicleId, token, userId);
+        const detail = await vehicleClient.getVehicleDetail(vehicleId, token, userId);
         const encryptInfo = detail.encryptInfo ?? detail.vehicleInfo?.encryptInfo;
         if (!encryptInfo?.encryptValue || !encryptInfo?.key) continue;
         const peripheralId = detail.btMac ?? detail.vehicleInfo?.btMac ?? vehicle.btMac;

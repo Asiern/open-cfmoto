@@ -113,6 +113,30 @@ export interface LoginResponse {
   [key: string]: unknown;
 }
 
+/**
+ * Login area row returned by GET /auth/user/getLoginArea.
+ * Sourced from MitM capture (payload contains areaNo/country/region/domain).
+ */
+export interface LoginArea {
+  areaNo: string;
+  country?: string;
+  countrySortedKey?: string;
+  countryENUS?: string;
+  countryZHCN?: string;
+  region?: string;
+  domain: string;
+  [key: string]: unknown;
+}
+
+export interface LoginAreaListResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: LoginArea[];
+  success?: boolean;
+  [key: string]: unknown;
+}
+
 export interface CloudErrorPayload {
   code?: number | string;
   msg?: string;

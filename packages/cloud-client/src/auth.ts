@@ -1,5 +1,13 @@
 import CryptoJS from 'crypto-js';
-import { CLOUD_CONFIG, COMMON_HEADERS, resolveAreaNo, resolveLangHeader, resolveZoneId } from './config';
+import {
+  CLOUD_CONFIG,
+  COMMON_HEADERS,
+  resolveAppInfoHeader,
+  resolveAreaNo,
+  resolveLangHeader,
+  resolveUserAgentHeader,
+  resolveZoneId,
+} from './config';
 import { buildSignedHeaders } from './signing';
 import { CloudAuthError, CloudErrorPayload, LoginResponse } from './types';
 
@@ -68,8 +76,8 @@ export class CloudAuthClient {
 
   constructor(private readonly baseUrl: string = CLOUD_CONFIG.BASE_URL) {}
 
-  async login(username: string, password: string): Promise<string> {
-    const areaNo = resolveAreaNo();
+  async login(username: string, password: string, options?: { areaNo?: string }): Promise<string> {
+    const areaNo = options?.areaNo ?? resolveAreaNo();
     const body = {
       idcard: username,
       idcardType: detectIdcardType(username),
@@ -88,6 +96,8 @@ export class CloudAuthClient {
       user_id: '',
       lang: resolveLangHeader(),
       ZoneId: resolveZoneId(),
+      'X-App-Info': resolveAppInfoHeader(),
+      'User-Agent': resolveUserAgentHeader(),
     });
     const url = joinUrl(this.baseUrl, CLOUD_CONFIG.ENDPOINTS.LOGIN);
 

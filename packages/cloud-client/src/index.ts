@@ -12,3 +12,4 @@ export * from './fence';
 export * from './commands';
 export * from './ota';
 export * from './settings';
+export * from './region';
