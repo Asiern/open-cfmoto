@@ -11,8 +11,8 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="auth/login" options={{ headerShown: false }} />
-          <Stack.Screen name="auth/register" options={{ title: 'Create Account' }} />
-          <Stack.Screen name="auth/forgot-password" options={{ title: 'Forgot Password' }} />
+          <Stack.Screen name="auth/register" options={{ headerShown: false }} />
+          <Stack.Screen name="auth/forgot-password" options={{ headerShown: false }} />
           <Stack.Screen name="scanner" options={{ presentation: 'modal', title: 'Connect Bike' }} />
           <Stack.Screen name="ride/[id]" options={{ title: 'Ride' }} />
         </Stack>

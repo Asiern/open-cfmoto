@@ -32,6 +32,7 @@ export default function RegisterScreen() {
   const [idcard, setIdcard] = useState('');
   const [verifyCode, setVerifyCode] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [codeBusy, setCodeBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -60,8 +61,12 @@ export default function RegisterScreen() {
   }
 
   async function handleRegister() {
-    if (!idcard.trim() || !verifyCode.trim() || !password.trim()) {
+    if (!idcard.trim() || !verifyCode.trim() || !password.trim() || !confirmPassword.trim()) {
       setMessage('Email/phone, verification code, and password are required.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setMessage('Passwords do not match.');
       return;
     }
     setBusy(true);
@@ -74,6 +79,7 @@ export default function RegisterScreen() {
       });
       setMessage('Registration successful. You are now signed in.');
       setPassword('');
+      setConfirmPassword('');
     } catch (error) {
       setMessage(formatCloudError(error));
     } finally {
@@ -122,9 +128,23 @@ export default function RegisterScreen() {
         placeholderTextColor="#666"
         onChangeText={setPassword}
       />
+      <TextInput
+        style={styles.input}
+        value={confirmPassword}
+        secureTextEntry
+        autoCapitalize="none"
+        autoCorrect={false}
+        placeholder="Confirm password"
+        placeholderTextColor="#666"
+        onChangeText={setConfirmPassword}
+      />
 
       <TouchableOpacity style={[styles.button, busy && styles.buttonDisabled]} disabled={busy} onPress={handleRegister}>
         {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Create Account</Text>}
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => router.replace('/auth/login')}>
+        <Text style={styles.linkText}>Already have an account? Sign in</Text>
       </TouchableOpacity>
 
       {message ? <Text style={styles.message}>{message}</Text> : null}
@@ -163,5 +183,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: '#fff', fontWeight: '700' },
+  linkText: { color: '#8fb4ff', fontSize: 13, fontWeight: '600', textAlign: 'center' },
   message: { color: '#d2d2d2', fontSize: 12 },
 });
