@@ -497,6 +497,103 @@ export interface TotalRideMileResponse {
   [key: string]: unknown;
 }
 
+// ─── Settings ────────────────────────────────────────────────────────────────
+
+/**
+ * App unit/settings response from GET /setting.
+ * Sourced from AppUnitSetResp.java in APK decompilation (official-v126-2.2.5).
+ */
+export interface AppUnitSetResp {
+  appUnit?: string;
+  drivingBehavior?: boolean;
+  id?: string;
+  appLogo?: string;
+  [key: string]: unknown;
+}
+
+export interface AppUnitSetResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: AppUnitSetResp;
+  success?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Single vehicle function/feature compatibility entry from GET /vehicle/set/list/compatibility/ele-v2.
+ * Sourced from VehicleFunResp.java in APK decompilation (official-v126-2.2.5).
+ */
+export interface VehicleFunResp {
+  id: number;
+  name?: string;
+  description?: string;
+  sign: number;
+  checked: number;
+  type: number;
+  /** Sub-items; structure not confirmed in APK — kept flexible. */
+  functionSubItem?: unknown;
+  [key: string]: unknown;
+}
+
+export interface VehicleFunListResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: VehicleFunResp[];
+  success?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Alarm/notification settings from GET/PUT /setting/alarm/compatibility/ele.
+ * Sourced from AlarmSetting.java in APK decompilation (official-v126-2.2.5).
+ * `vehicleAlarm` and `systemAlarm` have no default — treated as required booleans.
+ */
+export interface AlarmSetting {
+  vehicleAlarm: boolean;
+  systemAlarm: boolean;
+  defenseAlarm?: boolean;
+  eleLowPower?: string;
+  eleLowPowerAlarm?: boolean;
+  electronicFenceInAlarm?: boolean;
+  electronicFenceOutAlarm?: boolean;
+  id?: string;
+  launchAlarm?: boolean;
+  launchAlarmDefault?: boolean;
+  launchAlarmEnd?: string;
+  launchAlarmStart?: string;
+  longTimeDefault?: boolean;
+  longTimeWait?: string;
+  longTimeWaitAlarm?: boolean;
+  lowFireVoltageAlarm?: boolean;
+  lowPower?: string;
+  lowPowerAlarm?: boolean;
+  lowTirePressureAlarm?: boolean;
+  rollOverAlarm?: boolean;
+  shakeAlarm?: string;
+  simOffLineAlarm?: boolean;
+  tiredDriving?: string;
+  tiredDrivingDefault?: boolean;
+  tiredDrivingSwitch?: boolean;
+  userId?: string;
+  vehicleId?: string;
+  vehicleUseAlarm?: boolean;
+  operationAlarm?: boolean;
+  interactiveAlarm?: boolean;
+  emailMarketingAlarm?: boolean;
+  [key: string]: unknown;
+}
+
+export interface AlarmSettingResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: AlarmSetting;
+  success?: boolean;
+  [key: string]: unknown;
+}
+
 // ─── OTA ─────────────────────────────────────────────────────────────────────
 
 /**
