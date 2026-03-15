@@ -46,6 +46,18 @@ pnpm --filter @open-cfmoto/ble-protocol test     # protocol layer only
 cd apps/mobile && pnpm test                      # mobile app + integration
 ```
 
+### Run documentation site
+
+```bash
+pnpm docs:dev
+```
+
+Build static docs:
+
+```bash
+pnpm docs:build
+```
+
 ### Build the mobile app (requires EAS account)
 
 ```bash
@@ -128,6 +140,7 @@ const { units, speedLimit, lastConnectedDevice, setUnits, setSpeedLimit } = useS
 ```
 packages/ble-protocol/   Pure TypeScript — codec, auth, keepalive, commands, router
 apps/mobile/             Expo app (custom dev client) — screens, hooks, stores, services
+apps/docs/               Docusaurus docs site (packages docs + RE findings + project notes)
 tools/apk-analysis/      RE tooling: jadx output, btsnoop scripts, findings docs
 docs/                    Protocol findings, test coverage, hardware validation
 ```

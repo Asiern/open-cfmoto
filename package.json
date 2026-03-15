@@ -6,6 +6,8 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "docs:dev": "pnpm --filter @open-cfmoto/docs start",
+    "docs:build": "pnpm --filter @open-cfmoto/docs build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

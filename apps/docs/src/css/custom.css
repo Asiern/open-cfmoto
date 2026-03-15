@@ -1,0 +1,18 @@
+:root {
+  --ifm-color-primary: #1f4d8f;
+  --ifm-color-primary-dark: #1b4580;
+  --ifm-color-primary-darker: #193f76;
+  --ifm-color-primary-darkest: #153460;
+  --ifm-color-primary-light: #25559e;
+  --ifm-color-primary-lighter: #2b5fae;
+  --ifm-color-primary-lightest: #3b71c5;
+  --ifm-background-color: #f7f9fd;
+  --ifm-font-family-base: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --ifm-heading-font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  --ifm-code-font-size: 95%;
+}
+
+[data-theme='dark'] {
+  --ifm-background-color: #0f1320;
+}
+
