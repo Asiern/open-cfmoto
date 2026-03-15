@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { cloudAuthService } from '../../src/services/cloud-auth.service';
-import { useAuthStore } from '../../src/stores/auth.store';
 
 function formatCloudError(error: unknown): string {
   if (!(error instanceof Error)) {
@@ -25,11 +25,12 @@ function formatCloudError(error: unknown): string {
 }
 
 export default function ForgotPasswordScreen() {
-  const token = useAuthStore((s) => s.token);
+  const router = useRouter();
   const [idcard, setIdcard] = useState('');
   const [verifyCode, setVerifyCode] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [codeBusy, setCodeBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -52,8 +53,18 @@ export default function ForgotPasswordScreen() {
   }
 
   async function handleChangePassword() {
-    if (!idcard.trim() || !verifyCode.trim() || !currentPassword.trim() || !newPassword.trim()) {
+    if (
+      !idcard.trim() ||
+      !verifyCode.trim() ||
+      !currentPassword.trim() ||
+      !newPassword.trim() ||
+      !confirmPassword.trim()
+    ) {
       setMessage('All fields are required.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMessage('New passwords do not match.');
       return;
     }
     setBusy(true);
@@ -68,6 +79,7 @@ export default function ForgotPasswordScreen() {
       setMessage('Password updated successfully.');
       setCurrentPassword('');
       setNewPassword('');
+      setConfirmPassword('');
     } catch (error) {
       setMessage(formatCloudError(error));
     } finally {
@@ -81,10 +93,7 @@ export default function ForgotPasswordScreen() {
       <Text style={styles.subtitle}>
         Request and verify a code, then update your password.
       </Text>
-      <Text style={styles.hint}>
-        Note: current API requires current password for final update.
-      </Text>
-      {token ? <Text style={styles.hint}>You are signed in. You can update password directly here.</Text> : null}
+      <Text style={styles.hint}>Current backend requires current password for final update.</Text>
 
       <TextInput
         style={styles.input}
@@ -133,6 +142,16 @@ export default function ForgotPasswordScreen() {
         placeholderTextColor="#666"
         onChangeText={setNewPassword}
       />
+      <TextInput
+        style={styles.input}
+        value={confirmPassword}
+        secureTextEntry
+        autoCapitalize="none"
+        autoCorrect={false}
+        placeholder="Confirm new password"
+        placeholderTextColor="#666"
+        onChangeText={setConfirmPassword}
+      />
 
       <TouchableOpacity
         style={[styles.button, busy && styles.buttonDisabled]}
@@ -140,6 +159,10 @@ export default function ForgotPasswordScreen() {
         onPress={handleChangePassword}
       >
         {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Update Password</Text>}
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => router.replace('/auth/login')}>
+        <Text style={styles.linkText}>Back to sign in</Text>
       </TouchableOpacity>
 
       {message ? <Text style={styles.message}>{message}</Text> : null}
@@ -179,5 +202,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: '#fff', fontWeight: '700' },
+  linkText: { color: '#8fb4ff', fontSize: 13, fontWeight: '600', textAlign: 'center' },
   message: { color: '#d2d2d2', fontSize: 12 },
 });
