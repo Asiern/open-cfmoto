@@ -92,9 +92,15 @@ export interface PeripheralInfo {
 }
 
 export interface CloudConnectCredentials {
-  username: string;
-  password: string;
-  vehicleId: string;
+  username?: string;
+  password?: string;
+  vehicleId?: string;
+  /**
+   * Optional direct BLE auth material. If present, protocol auth can proceed
+   * without cloud login.
+   */
+  encryptValue?: string;
+  key?: string;
 }
 
 /** High-level bike protocol interface */

@@ -71,21 +71,37 @@ export class CFMoto450Protocol implements IBikeProtocol {
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     if (cloudCredentials) {
-      const token = await this.cloudAuthClient.login(
-        cloudCredentials.username,
-        cloudCredentials.password,
-      );
-      const userId = this.cloudAuthClient.getUserId?.() ?? null;
-      const encryptInfo = await this.vehicleClient.getEncryptInfo(
-        cloudCredentials.vehicleId,
-        token,
-        userId,
-      );
+      let credentials: AuthCredentials | null = null;
 
-      const credentials: AuthCredentials = {
-        encryptValue: encryptInfo.encryptValue,
-        key: encryptInfo.key,
-      };
+      if (cloudCredentials.encryptValue && cloudCredentials.key) {
+        credentials = {
+          encryptValue: cloudCredentials.encryptValue,
+          key: cloudCredentials.key,
+        };
+      } else if (
+        cloudCredentials.username &&
+        cloudCredentials.password &&
+        cloudCredentials.vehicleId
+      ) {
+        const token = await this.cloudAuthClient.login(
+          cloudCredentials.username,
+          cloudCredentials.password,
+        );
+        const userId = this.cloudAuthClient.getUserId?.() ?? null;
+        const encryptInfo = await this.vehicleClient.getEncryptInfo(
+          cloudCredentials.vehicleId,
+          token,
+          userId,
+        );
+        credentials = {
+          encryptValue: encryptInfo.encryptValue,
+          key: encryptInfo.key,
+        };
+      } else {
+        throw new Error(
+          'CFMoto connect auth requires either { encryptValue, key } or { username, password, vehicleId }',
+        );
+      }
 
       const router = new ResponseRouter();
       this.authRouter = router;
