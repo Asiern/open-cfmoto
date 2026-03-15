@@ -1,65 +1,18 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { UserVehicle } from '@open-cfmoto/cloud-client';
 import { useBikeStore } from '../../src/stores/bike.store';
 import { useRideStore } from '../../src/stores/ride.store';
 import { MetricCard } from '../../src/components/MetricCard';
 import { ConnectionBadge } from '../../src/components/ConnectionBadge';
 import { cloudAuthService } from '../../src/services/cloud-auth.service';
+import { useAuthStore } from '../../src/stores/auth.store';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { connectionState, bikeData } = useBikeStore();
   const { isRecording, startRecording, stopRecording } = useRideStore();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [authBusy, setAuthBusy] = useState(false);
-  const [authMessage, setAuthMessage] = useState<string | null>(null);
-  const [vehiclesBusy, setVehiclesBusy] = useState(false);
-  const [vehiclesMessage, setVehiclesMessage] = useState<string | null>(null);
-  const [vehicles, setVehicles] = useState<UserVehicle[]>([]);
-
-  async function handleCloudLoginTest() {
-    if (!username.trim() || !password.trim()) {
-      setAuthMessage('Cloud login: username/password required');
-      return;
-    }
-    setAuthBusy(true);
-    setAuthMessage(null);
-    try {
-      const result = await cloudAuthService.login(username.trim(), password);
-      const tokenPreview = result.token.slice(0, 8);
-      setVehicles([]);
-      setVehiclesMessage(null);
-      setAuthMessage(
-        `Cloud login OK (userId: ${result.userId ?? 'n/a'}, token: ${tokenPreview}...)`,
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown cloud login error';
-      setAuthMessage(`Cloud login failed: ${message}`);
-    } finally {
-      // Never retain password in UI state after attempting login.
-      setPassword('');
-      setAuthBusy(false);
-    }
-  }
-
-  async function handleLoadVehicles() {
-    setVehiclesBusy(true);
-    setVehiclesMessage(null);
-    try {
-      const result = await cloudAuthService.getUserVehicles(1);
-      setVehicles(result);
-      setVehiclesMessage(`Vehicles loaded: ${result.length}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown vehicle list error';
-      setVehicles([]);
-      setVehiclesMessage(`Load vehicles failed: ${message}`);
-    } finally {
-      setVehiclesBusy(false);
-    }
-  }
+  const userId = useAuthStore((s) => s.userId);
+  const idcard = useAuthStore((s) => s.idcard);
 
   return (
     <ScrollView style={styles.container}>
@@ -89,61 +42,24 @@ export default function DashboardScreen() {
       </TouchableOpacity>
 
       <View style={styles.cloudCard}>
-        <Text style={styles.cloudTitle}>Cloud Login Test</Text>
-        <TextInput
-          style={styles.input}
-          value={username}
-          autoCapitalize="none"
-          autoCorrect={false}
-          placeholder="Email or phone"
-          placeholderTextColor="#666"
-          onChangeText={setUsername}
-        />
-        <TextInput
-          style={styles.input}
-          value={password}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          placeholder="Password"
-          placeholderTextColor="#666"
-          onChangeText={setPassword}
-        />
+        <Text style={styles.cloudTitle}>Cloud Account</Text>
+        <Text style={styles.cloudMessage}>
+          {`Signed in as ${idcard ?? 'account'} (userId: ${userId ?? 'n/a'})`}
+        </Text>
         <TouchableOpacity
-          style={[styles.loginButton, authBusy && styles.loginButtonDisabled]}
-          disabled={authBusy}
-          onPress={handleCloudLoginTest}
+          style={styles.loginButton}
+          onPress={() => router.push('/auth/login')}
         >
-          {authBusy ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.loginButtonText}>Test Cloud Login</Text>
-          )}
+          <Text style={styles.loginButtonText}>Manage Account</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.vehiclesButton, (authBusy || vehiclesBusy) && styles.loginButtonDisabled]}
-          disabled={authBusy || vehiclesBusy}
-          onPress={handleLoadVehicles}
+          style={styles.vehiclesButton}
+          onPress={() => {
+            cloudAuthService.logout();
+          }}
         >
-          {vehiclesBusy ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.loginButtonText}>Load My Vehicles</Text>
-          )}
+          <Text style={styles.loginButtonText}>Sign Out</Text>
         </TouchableOpacity>
-        {authMessage ? <Text style={styles.cloudMessage}>{authMessage}</Text> : null}
-        {vehiclesMessage ? <Text style={styles.cloudMessage}>{vehiclesMessage}</Text> : null}
-        {vehicles.map((vehicle) => (
-          <View
-            key={`${String(vehicle.vehicleId ?? 'unknown')}-${String(vehicle.vin ?? '')}`}
-            style={styles.vehicleRow}
-          >
-            <Text style={styles.vehicleName}>{String(vehicle.vehicleName ?? 'Unnamed vehicle')}</Text>
-            <Text style={styles.vehicleMeta}>
-              {`id=${String(vehicle.vehicleId ?? 'n/a')} · vin=${String(vehicle.vin ?? 'n/a')}`}
-            </Text>
-          </View>
-        ))}
       </View>
     </ScrollView>
   );
@@ -172,15 +88,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   cloudTitle: { color: '#f3f3f3', fontWeight: '700', fontSize: 15 },
-  input: {
-    backgroundColor: '#0f0f0f',
-    borderWidth: 1,
-    borderColor: '#2c2c2c',
-    borderRadius: 8,
-    color: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
   loginButton: {
     backgroundColor: '#2563eb',
     borderRadius: 8,
@@ -195,17 +102,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 42,
   },
-  loginButtonDisabled: {
-    opacity: 0.6,
-  },
   loginButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   cloudMessage: { color: '#d4d4d4', fontSize: 12 },
-  vehicleRow: {
-    marginTop: 8,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#232323',
-  },
-  vehicleName: { color: '#f5f5f5', fontSize: 14, fontWeight: '600' },
-  vehicleMeta: { color: '#a3a3a3', fontSize: 12, marginTop: 2 },
 });

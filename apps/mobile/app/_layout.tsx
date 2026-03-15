@@ -10,6 +10,9 @@ export default function RootLayout() {
       <SQLiteProvider databaseName="open-cfmoto.db" onInit={initDatabase} useSuspense>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+          <Stack.Screen name="auth/register" options={{ title: 'Create Account' }} />
+          <Stack.Screen name="auth/forgot-password" options={{ title: 'Forgot Password' }} />
           <Stack.Screen name="scanner" options={{ presentation: 'modal', title: 'Connect Bike' }} />
           <Stack.Screen name="ride/[id]" options={{ title: 'Ride' }} />
         </Stack>
