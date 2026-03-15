@@ -1,9 +1,17 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import { useRideStore } from '../../src/stores/ride.store';
 import { MetricCard } from '../../src/components/MetricCard';
+import { useAuthStore } from '../../src/stores/auth.store';
+import { useBleAuthStore } from '../../src/stores/ble-auth.store';
 
 export default function RideScreen() {
+  const token = useAuthStore((s) => s.token);
+  const hasLocalBleKey = useBleAuthStore((s) => s.records.length > 0);
+  if (!token && !hasLocalBleKey) {
+    return <Redirect href="/auth/login" />;
+  }
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isRecording, currentStats } = useRideStore();
 

@@ -8,6 +8,7 @@ import { MockBikeProtocol, MockBleTransport } from '@open-cfmoto/ble-protocol';
 import { CFMoto450Protocol } from '@open-cfmoto/ble-protocol';
 import { useBikeStore } from '../stores/bike.store';
 import { SERVICE_MAIN } from '@open-cfmoto/ble-protocol';
+import { useBleAuthStore } from '../stores/ble-auth.store';
 
 export class BleService {
   private protocol: IBikeProtocol | null = null;
@@ -45,7 +46,18 @@ export class BleService {
     if (!this.protocol || !this.transport) throw new Error('BleService not initialized');
     useBikeStore.getState().setConnectionState('connecting');
     try {
-      this.disconnectFn = await this.protocol.connect(this.transport, peripheralId);
+      const cachedBleAuth = useBleAuthStore.getState().getByPeripheralId(peripheralId);
+      this.disconnectFn = await this.protocol.connect(
+        this.transport,
+        peripheralId,
+        cachedBleAuth
+          ? {
+              encryptValue: cachedBleAuth.encryptValue,
+              key: cachedBleAuth.key,
+              vehicleId: cachedBleAuth.vehicleId,
+            }
+          : undefined,
+      );
       this.unsubscribeData = this.protocol.onData((data) => {
         useBikeStore.getState().updateBikeData(data);
       });

@@ -1,9 +1,17 @@
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useBleConnection } from '../src/hooks/useBleConnection';
 import { PeripheralInfo } from '@open-cfmoto/ble-protocol';
+import { useAuthStore } from '../src/stores/auth.store';
+import { useBleAuthStore } from '../src/stores/ble-auth.store';
 
 export default function ScannerScreen() {
+  const token = useAuthStore((s) => s.token);
+  const hasLocalBleKey = useBleAuthStore((s) => s.records.length > 0);
+  if (!token && !hasLocalBleKey) {
+    return <Redirect href="/auth/login" />;
+  }
+
   const router = useRouter();
   const { scanning, peripherals, startScan, connectTo } = useBleConnection();
 
