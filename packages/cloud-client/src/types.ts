@@ -496,3 +496,59 @@ export interface TotalRideMileResponse {
   success?: boolean;
   [key: string]: unknown;
 }
+
+// ─── Alert Messages ───────────────────────────────────────────────────────────
+
+/**
+ * Single alert/alarm message record returned by GET /alarm/messagerecord.
+ * Sourced from MessageRecord.java in APK decompilation (official-v126-2.2.5).
+ */
+export interface AlarmMessage {
+  id: string;
+  content?: string;
+  detail?: string;
+  title?: string;
+  /** Category key used for tab filtering (e.g. "SECURITY", "SERVICE") */
+  messageType?: string;
+  /** Push timestamp (Unix ms) */
+  pushTime?: number;
+  read?: boolean;
+  vehicleId?: string;
+  userId?: string;
+  vin?: string;
+  plateNumber?: string;
+  vehicleNickName?: string;
+  /** Deep-link/navigation type for in-app routing */
+  jumpType?: string;
+  url?: string;
+  extra?: string;
+  latitude?: number;
+  longitude?: number;
+  /** SIM expiry timestamp (Unix ms) */
+  simExpire?: number;
+  simServiceEnable?: number;
+  /** UI-side tab type — not always present in backend response */
+  type?: string;
+  [key: string]: unknown;
+}
+
+export interface AlarmMessageListResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: AlarmMessage[];
+  success?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Query parameters for GET /alarm/messagerecord.
+ */
+export interface AlarmMessageListParams {
+  /** 1-indexed page number, default 1 */
+  pageStart?: number;
+  /** Items per page, default 20 */
+  pageSize?: number;
+  /** Filter by messageType/tab */
+  type?: string;
+}
