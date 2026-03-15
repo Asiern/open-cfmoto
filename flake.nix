@@ -69,6 +69,9 @@
             # Protobuf compiler (for ts-proto codegen: pnpm proto:gen)
             protobuf
 
+            # GitHub CLI
+            gh
+
             # Useful RE extras
             wireshark-cli   # tshark — filter btsnoop without GUI
           ];
