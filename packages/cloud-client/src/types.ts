@@ -354,3 +354,145 @@ export interface UpdateUserInfoRequest {
   birthday?: number;
   noticeEnabled?: number;
 }
+
+// ─── Driving Score / Statistics ──────────────────────────────────────────────
+
+/**
+ * Driving score report returned by GET /ride/report.
+ * Sourced from RideReportResp.java in APK decompilation.
+ */
+export interface RideReport {
+  /** Total composite driving score */
+  scoreTotal?: number;
+  /** Score for speed control */
+  scoreMaxSpeed?: number;
+  /** Score for mileage efficiency */
+  scoreMileage?: number;
+  /** Score for acceleration behaviour */
+  scoreRapidAcceleration?: number;
+  /** Score for deceleration behaviour */
+  scoreRapidDeceleration?: number;
+  /** Score for turning behaviour */
+  scoreTurn?: number;
+  /** Score for driving duration */
+  scoreDriveSeconds?: number;
+  /** Percentage related to max speed */
+  percentMaxSpeed?: number;
+  /** Percentage of mileage metric */
+  percentMileage?: number;
+  /** Percentage of rapid-acceleration events */
+  percentRapidAcceleration?: number;
+  /** Percentage of rapid-deceleration events */
+  percentRapidDeceleration?: number;
+  /** Percentage of rapid-turn events */
+  percentRapidTurn?: number;
+  /** Percentage of drive time */
+  percentDriveSeconds?: number;
+  /** Maximum speed recorded */
+  maxSpeed?: number;
+  /** Average daily ride mileage */
+  avgRideMileageDay?: number;
+  /** Monthly ride mileage */
+  rideMileageMonth?: number;
+  /** Monthly riding time (fractional hours or minutes depending on server) */
+  ridingTimeMonth?: number;
+  /** Monthly riding time in seconds (string form) */
+  ridingTimeMonthSeconds?: string;
+  /** Rapid-acceleration event count for the month */
+  accelerationTimesMonth?: string;
+  /** Hard-braking event count for the month */
+  brakesTimesMonth?: string;
+  /** Sharp-turn event count for the month */
+  bendingTimesMonth?: string;
+  /** Report generation timestamp */
+  reportTime?: string;
+  /** UI: description label for mileage visualization */
+  mileageVisualizationDes?: string;
+  /** UI: reference value for mileage visualization */
+  mileageVisualizationReference?: string;
+  /** UI: unit label for mileage visualization */
+  mileageVisualizationUnit?: string;
+  /** UI: numeric value for mileage visualization */
+  mileageVisualizationValue?: number;
+  /** UI: action verb for mileage visualization */
+  mileageVisualizationVerb?: string;
+  [key: string]: unknown;
+}
+
+export interface RideReportResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: RideReport;
+  success?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Per-day ride data entry within a monthly summary.
+ * Sourced from RideDataBean.java in APK decompilation.
+ */
+export interface RideDayData {
+  /** Report date as Unix timestamp (ms) */
+  reportTime?: number;
+  rideMileage?: number;
+  /** Riding time (fractional hours or minutes) */
+  ridingTime?: number;
+  /** Riding time in seconds (string form) */
+  ridingTimeSeconds?: string;
+  maxSpeed?: number;
+  /** Rapid-acceleration event count */
+  accelerationTimes?: number;
+  /** Hard-braking event count */
+  brakesTimes?: number;
+  /** Sharp-turn event count */
+  bendingTimes?: number;
+  powerConsumption?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Monthly ride data summary returned by GET /ride/report/list/month.
+ * Sourced from RideDataResp.java in APK decompilation.
+ */
+export interface MonthRideData {
+  /** Month timestamp */
+  date?: number;
+  /** Total mileage for the month */
+  rideMileage?: number;
+  /** Per-day breakdown */
+  list?: RideDayData[];
+  [key: string]: unknown;
+}
+
+export interface MonthRideDataResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: MonthRideData;
+  success?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Total mileage data returned by GET /ride/TotalRideMile/get.
+ * Sourced from NavMileageData.java in APK decompilation.
+ */
+export interface TotalRideMile {
+  /** Accumulated total ride mileage (string, unit depends on server config) */
+  totalRideMile?: string;
+  /** True when the server has detected an abnormal mileage value */
+  abnormalValue?: boolean;
+  /** K-line chart indicator */
+  isKline?: boolean;
+  [key: string]: unknown;
+}
+
+export interface TotalRideMileResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: TotalRideMile;
+  success?: boolean;
+  [key: string]: unknown;
+}
