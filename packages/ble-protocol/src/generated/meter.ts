@@ -9,6 +9,23 @@ import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 
 export const protobufPackage = "";
 
+/** Turn signal direction — top-level enum (confirmed Meter.java) */
+export enum LightType {
+  NONE2 = 0,
+  RIGHT_OPEN = 1,
+  RIGHT_CLOSE = 2,
+  LEFT_OPEN = 3,
+  LEFT_CLOSE = 4,
+  UNRECOGNIZED = -1,
+}
+
+/** Charger info type enum (confirmed Meter.java) */
+export enum PatchObtainInfoType {
+  NONE = 0,
+  CHARGER_INFO = 1,
+  UNRECOGNIZED = -1,
+}
+
 /** Auth step 1 — App→Bike (control 0x5A) */
 export interface AuthPackage {
   info: Uint8Array;
@@ -16,7 +33,7 @@ export interface AuthPackage {
 
 /** Auth step 2 — Bike→App (control 0x5B): bike random challenge */
 export interface TboxRandomNum {
-  codec: Uint8Array;
+  codec: string;
 }
 
 /** Auth step 3 — App→Bike (control 0x5C): decrypted challenge response */
@@ -70,16 +87,7 @@ export interface FindCar {
 
 /** Turn signal control — App→Bike (control 0x6B) */
 export interface LightControl {
-  type: LightControl_Type;
-}
-
-export enum LightControl_Type {
-  NONE2 = 0,
-  RIGHT_OPEN = 1,
-  RIGHT_CLOSE = 2,
-  LEFT_OPEN = 3,
-  LEFT_CLOSE = 4,
-  UNRECOGNIZED = -1,
+  direction: LightType;
 }
 
 /** Ignition — App→Bike (control 0x79) */
@@ -97,8 +105,8 @@ export interface Operate4g {
 /** 4G module complex command — App→Bike (control 0x0C) */
 export interface Operate4gComplex {
   command: number;
-  body: string;
   msgId: number;
+  body: string;
 }
 
 /** Enable/disable charging — App→Bike (control 0x0B) */
@@ -109,6 +117,18 @@ export interface ChargeStatus {
 /** Charge power setting — App→Bike (control 0x71) */
 export interface ChargeSetting {
   chargePower: number;
+}
+
+/** ChargeingType enum (documentation only; chargePower field stays int32 — APK: getChargePower(): int) */
+export enum ChargeSetting_ChargeingType {
+  power_none = 0,
+  power_350 = 1,
+  power_450 = 2,
+  power_550 = 3,
+  power_650 = 4,
+  power_750 = 5,
+  power_1900 = 6,
+  UNRECOGNIZED = -1,
 }
 
 /** Max speed limit — App→Bike (control 0x68) */
@@ -159,6 +179,7 @@ export interface PatchObtainInfoControl {
 
 /** Charger info response — Bike→App (control 0x95) */
 export interface PatchObtainInfoResult {
+  groupId: number;
   chargerConnState: number;
   chargState: number;
 }
@@ -174,6 +195,7 @@ export interface CommandResult {
 
 /** 4G command result — Bike→App (0x8A, 0x8C) */
 export interface CommandResult2 {
+  command: number;
   result: number;
   errorCode: number;
 }
@@ -183,8 +205,47 @@ export interface Theme {
   themes: number;
 }
 
-/** Navigation — App→Bike (control 0x66) */
+/**
+ * Navigation direction enum (confirmed Meter.java lines 2780-2802)
+ * Navigation — App→Bike (control 0x66)
+ */
 export interface Navi {
+  direction: Navi_Direction;
+  distance: number;
+}
+
+export enum Navi_Direction {
+  NONE = 0,
+  DEFAULT = 1,
+  LEFT = 2,
+  RIGHT = 3,
+  LEFTFRONT = 4,
+  RIGHTFRONT = 5,
+  LEFTBACK = 6,
+  RIGHTBACK = 7,
+  LEFTANDAROUND = 8,
+  STRAIGHT = 9,
+  ARRIVEDWAYPOINT = 10,
+  ENTERROUNDABOUT = 11,
+  OUTROUNDABOUT = 12,
+  ARRIVEDSERVICEAREA = 13,
+  ARRIVEDTOLLGATE = 14,
+  ARRIVEDDESTINATION = 15,
+  ARRIVEDTUNNEL = 16,
+  ENTRYLEFTRING = 17,
+  LEAVELEFTRING = 18,
+  UTURNRIGHT = 19,
+  SPECIALCONTINUE = 20,
+  UNRECOGNIZED = -1,
+}
+
+/** Generic success response */
+export interface Response {
+  success: number;
+}
+
+/** Route step (direction as int32, no enum) */
+export interface Route {
   direction: number;
   distance: number;
 }
@@ -236,13 +297,13 @@ export const AuthPackage: MessageFns<AuthPackage> = {
 };
 
 function createBaseTboxRandomNum(): TboxRandomNum {
-  return { codec: new Uint8Array(0) };
+  return { codec: "" };
 }
 
 export const TboxRandomNum: MessageFns<TboxRandomNum> = {
   encode(message: TboxRandomNum, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.codec.length !== 0) {
-      writer.uint32(10).bytes(message.codec);
+    if (message.codec !== "") {
+      writer.uint32(10).string(message.codec);
     }
     return writer;
   },
@@ -259,7 +320,7 @@ export const TboxRandomNum: MessageFns<TboxRandomNum> = {
             break;
           }
 
-          message.codec = reader.bytes();
+          message.codec = reader.string();
           continue;
         }
       }
@@ -276,7 +337,7 @@ export const TboxRandomNum: MessageFns<TboxRandomNum> = {
   },
   fromPartial<I extends Exact<DeepPartial<TboxRandomNum>, I>>(object: I): TboxRandomNum {
     const message = createBaseTboxRandomNum();
-    message.codec = object.codec ?? new Uint8Array(0);
+    message.codec = object.codec ?? "";
     return message;
   },
 };
@@ -548,13 +609,13 @@ export const FindCar: MessageFns<FindCar> = {
 };
 
 function createBaseLightControl(): LightControl {
-  return { type: 0 };
+  return { direction: 0 };
 }
 
 export const LightControl: MessageFns<LightControl> = {
   encode(message: LightControl, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.type !== 0) {
-      writer.uint32(8).int32(message.type);
+    if (message.direction !== 0) {
+      writer.uint32(8).int32(message.direction);
     }
     return writer;
   },
@@ -571,7 +632,7 @@ export const LightControl: MessageFns<LightControl> = {
             break;
           }
 
-          message.type = reader.int32() as any;
+          message.direction = reader.int32() as any;
           continue;
         }
       }
@@ -588,7 +649,7 @@ export const LightControl: MessageFns<LightControl> = {
   },
   fromPartial<I extends Exact<DeepPartial<LightControl>, I>>(object: I): LightControl {
     const message = createBaseLightControl();
-    message.type = object.type ?? 0;
+    message.direction = object.direction ?? 0;
     return message;
   },
 };
@@ -710,7 +771,7 @@ export const Operate4g: MessageFns<Operate4g> = {
 };
 
 function createBaseOperate4gComplex(): Operate4gComplex {
-  return { command: 0, body: "", msgId: 0 };
+  return { command: 0, msgId: 0, body: "" };
 }
 
 export const Operate4gComplex: MessageFns<Operate4gComplex> = {
@@ -718,11 +779,11 @@ export const Operate4gComplex: MessageFns<Operate4gComplex> = {
     if (message.command !== 0) {
       writer.uint32(8).int32(message.command);
     }
-    if (message.body !== "") {
-      writer.uint32(18).string(message.body);
-    }
     if (message.msgId !== 0) {
-      writer.uint32(24).int32(message.msgId);
+      writer.uint32(16).int32(message.msgId);
+    }
+    if (message.body !== "") {
+      writer.uint32(26).string(message.body);
     }
     return writer;
   },
@@ -743,19 +804,19 @@ export const Operate4gComplex: MessageFns<Operate4gComplex> = {
           continue;
         }
         case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.body = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 24) {
+          if (tag !== 16) {
             break;
           }
 
           message.msgId = reader.int32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.body = reader.string();
           continue;
         }
       }
@@ -773,8 +834,8 @@ export const Operate4gComplex: MessageFns<Operate4gComplex> = {
   fromPartial<I extends Exact<DeepPartial<Operate4gComplex>, I>>(object: I): Operate4gComplex {
     const message = createBaseOperate4gComplex();
     message.command = object.command ?? 0;
-    message.body = object.body ?? "";
     message.msgId = object.msgId ?? 0;
+    message.body = object.body ?? "";
     return message;
   },
 };
@@ -1046,16 +1107,19 @@ export const PatchObtainInfoControl: MessageFns<PatchObtainInfoControl> = {
 };
 
 function createBasePatchObtainInfoResult(): PatchObtainInfoResult {
-  return { chargerConnState: 0, chargState: 0 };
+  return { groupId: 0, chargerConnState: 0, chargState: 0 };
 }
 
 export const PatchObtainInfoResult: MessageFns<PatchObtainInfoResult> = {
   encode(message: PatchObtainInfoResult, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.groupId !== 0) {
+      writer.uint32(8).int32(message.groupId);
+    }
     if (message.chargerConnState !== 0) {
-      writer.uint32(8).int32(message.chargerConnState);
+      writer.uint32(16).int32(message.chargerConnState);
     }
     if (message.chargState !== 0) {
-      writer.uint32(16).int32(message.chargState);
+      writer.uint32(24).int32(message.chargState);
     }
     return writer;
   },
@@ -1072,11 +1136,19 @@ export const PatchObtainInfoResult: MessageFns<PatchObtainInfoResult> = {
             break;
           }
 
-          message.chargerConnState = reader.int32();
+          message.groupId = reader.int32();
           continue;
         }
         case 2: {
           if (tag !== 16) {
+            break;
+          }
+
+          message.chargerConnState = reader.int32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
             break;
           }
 
@@ -1097,6 +1169,7 @@ export const PatchObtainInfoResult: MessageFns<PatchObtainInfoResult> = {
   },
   fromPartial<I extends Exact<DeepPartial<PatchObtainInfoResult>, I>>(object: I): PatchObtainInfoResult {
     const message = createBasePatchObtainInfoResult();
+    message.groupId = object.groupId ?? 0;
     message.chargerConnState = object.chargerConnState ?? 0;
     message.chargState = object.chargState ?? 0;
     return message;
@@ -1162,16 +1235,19 @@ export const CommandResult: MessageFns<CommandResult> = {
 };
 
 function createBaseCommandResult2(): CommandResult2 {
-  return { result: 0, errorCode: 0 };
+  return { command: 0, result: 0, errorCode: 0 };
 }
 
 export const CommandResult2: MessageFns<CommandResult2> = {
   encode(message: CommandResult2, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.command !== 0) {
+      writer.uint32(8).int32(message.command);
+    }
     if (message.result !== 0) {
-      writer.uint32(8).int32(message.result);
+      writer.uint32(16).int32(message.result);
     }
     if (message.errorCode !== 0) {
-      writer.uint32(16).int32(message.errorCode);
+      writer.uint32(24).int32(message.errorCode);
     }
     return writer;
   },
@@ -1188,11 +1264,19 @@ export const CommandResult2: MessageFns<CommandResult2> = {
             break;
           }
 
-          message.result = reader.int32();
+          message.command = reader.int32();
           continue;
         }
         case 2: {
           if (tag !== 16) {
+            break;
+          }
+
+          message.result = reader.int32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
             break;
           }
 
@@ -1213,6 +1297,7 @@ export const CommandResult2: MessageFns<CommandResult2> = {
   },
   fromPartial<I extends Exact<DeepPartial<CommandResult2>, I>>(object: I): CommandResult2 {
     const message = createBaseCommandResult2();
+    message.command = object.command ?? 0;
     message.result = object.result ?? 0;
     message.errorCode = object.errorCode ?? 0;
     return message;
@@ -1292,7 +1377,7 @@ export const Navi: MessageFns<Navi> = {
             break;
           }
 
-          message.direction = reader.int32();
+          message.direction = reader.int32() as any;
           continue;
         }
         case 2: {
@@ -1317,6 +1402,110 @@ export const Navi: MessageFns<Navi> = {
   },
   fromPartial<I extends Exact<DeepPartial<Navi>, I>>(object: I): Navi {
     const message = createBaseNavi();
+    message.direction = object.direction ?? 0;
+    message.distance = object.distance ?? 0;
+    return message;
+  },
+};
+
+function createBaseResponse(): Response {
+  return { success: 0 };
+}
+
+export const Response: MessageFns<Response> = {
+  encode(message: Response, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.success !== 0) {
+      writer.uint32(8).int32(message.success);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Response {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.success = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<Response>, I>>(base?: I): Response {
+    return Response.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Response>, I>>(object: I): Response {
+    const message = createBaseResponse();
+    message.success = object.success ?? 0;
+    return message;
+  },
+};
+
+function createBaseRoute(): Route {
+  return { direction: 0, distance: 0 };
+}
+
+export const Route: MessageFns<Route> = {
+  encode(message: Route, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.direction !== 0) {
+      writer.uint32(8).int32(message.direction);
+    }
+    if (message.distance !== 0) {
+      writer.uint32(16).int32(message.distance);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Route {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRoute();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.direction = reader.int32();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.distance = reader.int32();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  create<I extends Exact<DeepPartial<Route>, I>>(base?: I): Route {
+    return Route.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<Route>, I>>(object: I): Route {
+    const message = createBaseRoute();
     message.direction = object.direction ?? 0;
     message.distance = object.distance ?? 0;
     return message;

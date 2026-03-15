@@ -10,7 +10,7 @@ message AuthPackage {
 
 // Auth step 2 — Bike→App (control 0x5B): bike random challenge
 message TboxRandomNum {
-  bytes codec = 1;
+  string codec = 1;
 }
 
 // Auth step 3 — App→Bike (control 0x5C): decrypted challenge response
@@ -58,16 +58,18 @@ message FindCar {
   bool loudspeakerStatus = 3;
 }
 
+// Turn signal direction — top-level enum (confirmed Meter.java)
+enum LightType {
+  NONE2 = 0;
+  RIGHT_OPEN = 1;
+  RIGHT_CLOSE = 2;
+  LEFT_OPEN = 3;
+  LEFT_CLOSE = 4;
+}
+
 // Turn signal control — App→Bike (control 0x6B)
 message LightControl {
-  enum Type {
-    NONE2 = 0;
-    RIGHT_OPEN = 1;
-    RIGHT_CLOSE = 2;
-    LEFT_OPEN = 3;
-    LEFT_CLOSE = 4;
-  }
-  Type type = 1;
+  LightType direction = 1;
 }
 
 // Ignition — App→Bike (control 0x79)
@@ -85,8 +87,8 @@ message Operate4g {
 // 4G module complex command — App→Bike (control 0x0C)
 message Operate4gComplex {
   int32 command = 1;
-  string body = 2;
-  int32 msgId = 3;
+  int32 msgId = 2;
+  string body = 3;
 }
 
 // Enable/disable charging — App→Bike (control 0x0B)
@@ -96,6 +98,16 @@ message ChargeStatus {
 
 // Charge power setting — App→Bike (control 0x71)
 message ChargeSetting {
+  // ChargeingType enum (documentation only; chargePower field stays int32 — APK: getChargePower(): int)
+  enum ChargeingType {
+    power_none = 0;
+    power_350 = 1;
+    power_450 = 2;
+    power_550 = 3;
+    power_650 = 4;
+    power_750 = 5;
+    power_1900 = 6;
+  }
   int32 chargePower = 1;
 }
 
@@ -137,10 +149,17 @@ message PatchObtainInfoControl {
   int32 groupId = 1;
 }
 
+// Charger info type enum (confirmed Meter.java)
+enum PatchObtainInfoType {
+  NONE = 0;
+  CHARGER_INFO = 1;
+}
+
 // Charger info response — Bike→App (control 0x95)
 message PatchObtainInfoResult {
-  int32 chargerConnState = 1;
-  int32 chargState = 2;
+  int32 groupId = 1;
+  int32 chargerConnState = 2;
+  int32 chargState = 3;
 }
 
 // Generic command result — Bike→App (0xE7, 0xEA, 0xEB, 0xF9, 0x8B)
@@ -152,8 +171,9 @@ message CommandResult {
 
 // 4G command result — Bike→App (0x8A, 0x8C)
 message CommandResult2 {
-  int32 result = 1;
-  int32 errorCode = 2;
+  int32 command = 1;
+  int32 result = 2;
+  int32 errorCode = 3;
 }
 
 // Display theme — App→Bike (control 0x65)
@@ -161,8 +181,43 @@ message Theme {
   int32 themes = 1;
 }
 
+// Navigation direction enum (confirmed Meter.java lines 2780-2802)
 // Navigation — App→Bike (control 0x66)
 message Navi {
+  enum Direction {
+    NONE = 0;
+    DEFAULT = 1;
+    LEFT = 2;
+    RIGHT = 3;
+    LEFTFRONT = 4;
+    RIGHTFRONT = 5;
+    LEFTBACK = 6;
+    RIGHTBACK = 7;
+    LEFTANDAROUND = 8;
+    STRAIGHT = 9;
+    ARRIVEDWAYPOINT = 10;
+    ENTERROUNDABOUT = 11;
+    OUTROUNDABOUT = 12;
+    ARRIVEDSERVICEAREA = 13;
+    ARRIVEDTOLLGATE = 14;
+    ARRIVEDDESTINATION = 15;
+    ARRIVEDTUNNEL = 16;
+    ENTRYLEFTRING = 17;
+    LEAVELEFTRING = 18;
+    UTURNRIGHT = 19;
+    SPECIALCONTINUE = 20;
+  }
+  Direction direction = 1;
+  int32 distance = 2;
+}
+
+// Generic success response
+message Response {
+  int32 success = 1;
+}
+
+// Route step (direction as int32, no enum)
+message Route {
   int32 direction = 1;
   int32 distance = 2;
 }

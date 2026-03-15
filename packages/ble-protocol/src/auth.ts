@@ -114,7 +114,7 @@ export class AuthFlow {
     // If auth fails on hardware, also try:
     //   1. Pass raw codec bytes directly to AES (codec is raw binary ciphertext)
     //   2. Base64-decode codec string
-    const codecHex = new TextDecoder().decode(tboxRandomNum.codec);
+    const codecHex = tboxRandomNum.codec;
     const ciphertext = hexDecode(codecHex);
     const sn = aesDecrypt(ciphertext, key);
 

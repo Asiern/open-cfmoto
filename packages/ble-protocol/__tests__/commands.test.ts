@@ -14,7 +14,7 @@ import {
   Lock_Type,
   Lock_State,
   LightControl,
-  LightControl_Type,
+  LightType,
   Display,
   Display_Distance,
   Display_Temperature,
@@ -99,31 +99,31 @@ describe('findCar()', () => {
 });
 
 describe('setIndicators()', () => {
-  test("right: LightControl_Type.RIGHT_OPEN", () => {
+  test("right: LightType.RIGHT_OPEN", () => {
     const frame = setIndicators('right');
     const parsed = parseFrame(frame);
     expect(parsed.valid).toBe(true);
     expect(parsed.controlCode).toBe(ControlCode.LIGHT_CONTROL);
     const msg = LightControl.decode(parsed.payload);
-    expect(msg.type).toBe(LightControl_Type.RIGHT_OPEN);
+    expect(msg.direction).toBe(LightType.RIGHT_OPEN);
   });
 
-  test("left: LightControl_Type.LEFT_OPEN", () => {
+  test("left: LightType.LEFT_OPEN", () => {
     const frame = setIndicators('left');
     const parsed = parseFrame(frame);
     expect(parsed.valid).toBe(true);
     expect(parsed.controlCode).toBe(ControlCode.LIGHT_CONTROL);
     const msg = LightControl.decode(parsed.payload);
-    expect(msg.type).toBe(LightControl_Type.LEFT_OPEN);
+    expect(msg.direction).toBe(LightType.LEFT_OPEN);
   });
 
-  test("off: LightControl_Type.NONE2", () => {
+  test("off: LightType.NONE2", () => {
     const frame = setIndicators('off');
     const parsed = parseFrame(frame);
     expect(parsed.valid).toBe(true);
     expect(parsed.controlCode).toBe(ControlCode.LIGHT_CONTROL);
     const msg = LightControl.decode(parsed.payload);
-    expect(msg.type).toBe(LightControl_Type.NONE2);
+    expect(msg.direction).toBe(LightType.NONE2);
   });
 });
 

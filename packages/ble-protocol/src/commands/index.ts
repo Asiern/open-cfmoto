@@ -10,7 +10,7 @@ import { ControlCode } from '../response-router';
 import {
   FindCar,
   LightControl,
-  LightControl_Type,
+  LightType,
   Display,
   Display_Distance,
   Display_Temperature,
@@ -77,19 +77,19 @@ export function findCar(mode: 'horn' | 'flash' | 'light'): Uint8Array {
  * - 'off'   → NONE2
  */
 export function setIndicators(side: 'left' | 'right' | 'off'): Uint8Array {
-  let type: LightControl_Type;
+  let direction: LightType;
   switch (side) {
     case 'right':
-      type = LightControl_Type.RIGHT_OPEN;
+      direction = LightType.RIGHT_OPEN;
       break;
     case 'left':
-      type = LightControl_Type.LEFT_OPEN;
+      direction = LightType.LEFT_OPEN;
       break;
     case 'off':
-      type = LightControl_Type.NONE2;
+      direction = LightType.NONE2;
       break;
   }
-  const payload = LightControl.encode(LightControl.fromPartial({ type })).finish();
+  const payload = LightControl.encode(LightControl.fromPartial({ direction })).finish();
   return buildFrame(ControlCode.LIGHT_CONTROL, payload);
 }
 
