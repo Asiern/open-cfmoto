@@ -21,6 +21,14 @@ function detectIdcardType(idcard: string): string {
   return idcard.includes('@') ? 'email' : 'phone';
 }
 
+function normalizeAreaCode(areaCode?: string): string {
+  if (!areaCode) {
+    return '';
+  }
+  // APK strips leading "+" from country code before sending.
+  return areaCode.trim().replace(/^\+/, '');
+}
+
 function normalizePassword(password: string): string {
   const trimmed = password.trim();
   if (/^[0-9a-f]{32}$/i.test(trimmed)) {
@@ -84,7 +92,7 @@ export class AccountClient {
       idcardType: detectIdcardType(req.idcard),
       password: normalizePassword(req.password),
       verifyCode: req.verifyCode,
-      areaCode: req.areaCode ?? '',
+      areaCode: normalizeAreaCode(req.areaCode),
       areaNo: req.areaNo ?? resolveAreaNo(),
       emailMarketingAlarm: req.emailMarketingAlarm ?? false,
     };
@@ -131,7 +139,7 @@ export class AccountClient {
       idcard: req.idcard,
       idcardType: detectIdcardType(req.idcard),
       verifyCode: '',
-      areaCode: req.areaCode ?? '',
+      areaCode: normalizeAreaCode(req.areaCode),
       areaNo: req.areaNo ?? resolveAreaNo(),
       emailMarketingAlarm: false,
     };
@@ -164,7 +172,7 @@ export class AccountClient {
       idcard: req.idcard,
       idcardType: detectIdcardType(req.idcard),
       verifyCode: req.verifyCode,
-      areaCode: req.areaCode ?? '',
+      areaCode: normalizeAreaCode(req.areaCode),
       areaNo: req.areaNo ?? resolveAreaNo(),
       emailMarketingAlarm: false,
     };
