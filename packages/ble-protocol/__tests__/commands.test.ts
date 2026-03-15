@@ -218,6 +218,18 @@ describe('setSpeedLimit()', () => {
     expect(msg.maximumSpeedLimit).toBe(kmh);
   });
 
+  test('kmh=0 encodes as empty payload (proto3 default omission)', () => {
+    // maximumSpeedLimit=0 is the proto3 default — field is omitted on the wire.
+    const parsed = parseFrame(setSpeedLimit(0));
+    expect(parsed.payload).toEqual(new Uint8Array([]));
+  });
+
+  test('kmh=120 encodes correct wire bytes', () => {
+    // field 1 (maximumSpeedLimit), varint 120 (0x78) → [0x08, 0x78]
+    const parsed = parseFrame(setSpeedLimit(120));
+    expect(parsed.payload).toEqual(new Uint8Array([0x08, 0x78]));
+  });
+
   test('throws RangeError for kmh = 256', () => {
     expect(() => setSpeedLimit(256)).toThrow(RangeError);
   });
