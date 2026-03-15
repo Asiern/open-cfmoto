@@ -8,3 +8,4 @@ export * from './account';
 export * from './ride';
 export * from './stats';
 export * from './alert';
+export * from './fence';

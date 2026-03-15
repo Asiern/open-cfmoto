@@ -18,6 +18,8 @@ export const CLOUD_CONFIG = {
     RIDE_REPORT: '/fuel-vehicle/servervehicle/app/ride/report',
     RIDE_REPORT_MONTH: '/fuel-vehicle/servervehicle/app/ride/report/list/month',
     RIDE_TOTAL_MILE: '/fuel-vehicle/servervehicle/app/ride/TotalRideMile/get',
+    ELECTRIC_FENCE_LIST: '/fuel-vehicle/servervehicle/app/electricFence/list',
+    ELECTRIC_FENCE: '/fuel-vehicle/servervehicle/app/electricFence',
     ALARM_MESSAGE_LIST: '/fuel-vehicle/servervehicle/app/alarm/messagerecord',
     ALARM_MESSAGE_MARK_READ: '/fuel-vehicle/servervehicle/app/alarm/messagerecord/mark_read/v1',
     ALARM_MESSAGE_DELETE: '/fuel-vehicle/servervehicle/app/alarm/messagerecord/delete',
