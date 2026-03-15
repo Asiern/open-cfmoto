@@ -9,6 +9,9 @@ import { buildFrame } from '../codec';
 import { ControlCode } from '../response-router';
 import {
   FindCar,
+  Lock,
+  Lock_State,
+  Lock_Type,
   LightControl,
   LightType,
   Display,
@@ -20,19 +23,40 @@ import {
 } from '../generated/meter';
 
 /**
- * Wrap pre-built Lock proto bytes in a LOCK_CONTROL frame for locking.
- * Callers are responsible for encoding the Lock protobuf message.
+ * Build lock payload with proto-aligned type/state enums.
  */
-export function lock(encryptedPayload: Uint8Array): Uint8Array {
-  return buildFrame(ControlCode.LOCK_CONTROL, encryptedPayload);
+function buildLockPayload(type: Lock_Type, state: Lock_State): Uint8Array {
+  return Lock.encode(Lock.fromPartial({ type, state })).finish();
 }
 
 /**
- * Wrap pre-built Lock proto bytes in a LOCK_CONTROL frame for unlocking.
- * Callers are responsible for encoding the Lock protobuf message.
+ * Build a LOCK_CONTROL (0x67) lock frame.
+ * If a payload is provided, it is wrapped as-is for backwards compatibility.
  */
-export function unlock(encryptedPayload: Uint8Array): Uint8Array {
-  return buildFrame(ControlCode.LOCK_CONTROL, encryptedPayload);
+export function lock(payload?: Uint8Array): Uint8Array {
+  const encoded = payload ?? buildLockPayload(Lock_Type.MOTORCYCLE, Lock_State.LOCKED);
+  return buildFrame(ControlCode.LOCK_CONTROL, encoded);
+}
+
+/**
+ * Build a LOCK_CONTROL (0x67) unlock frame.
+ * If a payload is provided, it is wrapped as-is for backwards compatibility.
+ */
+export function unlock(payload?: Uint8Array): Uint8Array {
+  const encoded = payload ?? buildLockPayload(Lock_Type.MOTORCYCLE, Lock_State.UNLOCKED);
+  return buildFrame(ControlCode.LOCK_CONTROL, encoded);
+}
+
+/** Build a LOCK_CONTROL (0x67) power-on frame. */
+export function powerOn(): Uint8Array {
+  const payload = buildLockPayload(Lock_Type.POWER_ON_OFF, Lock_State.POWER_ON);
+  return buildFrame(ControlCode.LOCK_CONTROL, payload);
+}
+
+/** Build a LOCK_CONTROL (0x67) power-off frame. */
+export function powerOff(): Uint8Array {
+  const payload = buildLockPayload(Lock_Type.POWER_ON_OFF, Lock_State.POWER_OFF);
+  return buildFrame(ControlCode.LOCK_CONTROL, payload);
 }
 
 /**
