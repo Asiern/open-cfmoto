@@ -497,6 +497,57 @@ export interface TotalRideMileResponse {
   [key: string]: unknown;
 }
 
+// ─── Electric Fence ──────────────────────────────────────────────────────────
+
+/**
+ * Electric fence record returned by GET /electricFence/list.
+ * Sourced from ElectricFenceResp.java in APK decompilation (official-v126-2.2.5).
+ */
+export interface ElectricFence {
+  id?: string | null;
+  rideRangeName?: string | null;
+  rideRangeRule?: string | null;
+  address?: string | null;
+  addrPosition?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  /** Fence radius in meters */
+  radius?: number | null;
+  scalingRatio?: number | null;
+  /** Active/inactive state string (e.g. "0" / "1") */
+  state?: string | null;
+  [key: string]: unknown;
+}
+
+export interface ElectricFenceListResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: ElectricFence[];
+  success?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Request body for POST /electricFence (create) and PUT /electricFence/{id} (update).
+ * Sourced from AddElectFenceReq.java in APK decompilation (official-v126-2.2.5).
+ * `radius` is a string in the request despite being a number in the response.
+ */
+export interface CreateElectricFenceRequest {
+  vehicleId?: string | null;
+  rideRangeName?: string | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  /** Fence radius — sent as string per AddElectFenceReq.java */
+  radius?: string | null;
+  scalingRatio?: number | null;
+  /** Active/inactive state numeric flag */
+  state?: number | null;
+  /** Present only for update (PUT). Omit for create (POST). */
+  id?: string | null;
+}
+
 // ─── Alert Messages ───────────────────────────────────────────────────────────
 
 /**
