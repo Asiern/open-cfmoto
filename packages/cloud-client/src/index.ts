@@ -10,3 +10,4 @@ export * from './stats';
 export * from './alert';
 export * from './fence';
 export * from './commands';
+export * from './ota';
