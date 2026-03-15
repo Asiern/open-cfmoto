@@ -497,6 +497,64 @@ export interface TotalRideMileResponse {
   [key: string]: unknown;
 }
 
+// ─── OTA ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Single pending update entry returned by GET /ota/check.
+ * Sourced from VehicleUpdateBean.java in APK decompilation (official-v126-2.2.5).
+ */
+export interface VehicleUpdateBean {
+  codeMessage?: string;
+  code?: string;
+  check?: boolean;
+  url?: string;
+  [key: string]: unknown;
+}
+
+export interface OtaCheckResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: VehicleUpdateBean[];
+  success?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * OTA detail record returned by GET /ota.
+ * Sourced from OtaDetailRsp.java in APK decompilation (official-v126-2.2.5).
+ * Fields with defaults are non-optional strings per APK (default "").
+ */
+export interface OtaDetail {
+  id?: string;
+  notesUrl?: string;
+  otaStatus?: number;
+  timeToDie?: string;
+  versionDescUrl?: string;
+  versionNum?: string;
+  releaseTime?: string;
+  orderDate?: string;
+  orderStatus?: string;
+  orderButtonEnabled?: number;
+  scheduleButtonEnabled?: number;
+  /** Default "" in APK */
+  orderTimestamp?: string;
+  /** Default "" in APK */
+  errorMsg?: string;
+  /** Default "" in APK */
+  orderUpgradeVoltage?: string;
+  [key: string]: unknown;
+}
+
+export interface OtaDetailResponse {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: OtaDetail;
+  success?: boolean;
+  [key: string]: unknown;
+}
+
 // ─── Remote Commands ─────────────────────────────────────────────────────────
 
 /**

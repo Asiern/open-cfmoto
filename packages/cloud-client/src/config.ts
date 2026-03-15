@@ -18,6 +18,8 @@ export const CLOUD_CONFIG = {
     RIDE_REPORT: '/fuel-vehicle/servervehicle/app/ride/report',
     RIDE_REPORT_MONTH: '/fuel-vehicle/servervehicle/app/ride/report/list/month',
     RIDE_TOTAL_MILE: '/fuel-vehicle/servervehicle/app/ride/TotalRideMile/get',
+    OTA_CHECK: '/fuel-vehicle/servervehicle/app/ota/check',
+    OTA_DETAIL: '/fuel-vehicle/servervehicle/app/ota',
     REMOTE_UNLOCK: '/fuel-vehicle/servervehicle/app/vehicle/state/remote/unlock',
     FLASH_HORN: '/fuel-vehicle/servervehicle/app/vehicle/state/flash/horn',
     KL15: '/fuel-vehicle/servervehicle/app/vehicle/state/vehicle/kl15',
