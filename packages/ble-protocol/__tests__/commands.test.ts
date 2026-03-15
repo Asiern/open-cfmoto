@@ -3,6 +3,8 @@ import { ControlCode } from '../src/response-router';
 import {
   lock,
   unlock,
+  powerOn,
+  powerOff,
   findCar,
   setIndicators,
   setUnits,
@@ -44,6 +46,16 @@ describe('lock()', () => {
     const parsed = parseFrame(frame);
     expect(parsed.payload).toEqual(payload);
   });
+
+  test('without payload, encodes MOTORCYCLE + LOCKED', () => {
+    const frame = lock();
+    const parsed = parseFrame(frame);
+    expect(parsed.controlCode).toBe(ControlCode.LOCK_CONTROL);
+    expect(parsed.payload).toEqual(new Uint8Array([0x08, 0x01, 0x10, 0x02]));
+    const msg = Lock.decode(parsed.payload);
+    expect(msg.type).toBe(Lock_Type.MOTORCYCLE);
+    expect(msg.state).toBe(Lock_State.LOCKED);
+  });
 });
 
 describe('unlock()', () => {
@@ -60,6 +72,40 @@ describe('unlock()', () => {
     const frame = unlock(payload);
     const parsed = parseFrame(frame);
     expect(parsed.payload).toEqual(payload);
+  });
+
+  test('without payload, encodes MOTORCYCLE + UNLOCKED', () => {
+    const frame = unlock();
+    const parsed = parseFrame(frame);
+    expect(parsed.controlCode).toBe(ControlCode.LOCK_CONTROL);
+    expect(parsed.payload).toEqual(new Uint8Array([0x08, 0x01, 0x10, 0x01]));
+    const msg = Lock.decode(parsed.payload);
+    expect(msg.type).toBe(Lock_Type.MOTORCYCLE);
+    expect(msg.state).toBe(Lock_State.UNLOCKED);
+  });
+});
+
+describe('powerOn()/powerOff()', () => {
+  test('powerOn encodes POWER_ON_OFF + POWER_ON with LOCK_CONTROL code', () => {
+    const frame = powerOn();
+    const parsed = parseFrame(frame);
+    expect(parsed.valid).toBe(true);
+    expect(parsed.controlCode).toBe(ControlCode.LOCK_CONTROL);
+    expect(parsed.payload).toEqual(new Uint8Array([0x08, 0x07, 0x10, 0x03]));
+    const msg = Lock.decode(parsed.payload);
+    expect(msg.type).toBe(Lock_Type.POWER_ON_OFF);
+    expect(msg.state).toBe(Lock_State.POWER_ON);
+  });
+
+  test('powerOff encodes POWER_ON_OFF + POWER_OFF with LOCK_CONTROL code', () => {
+    const frame = powerOff();
+    const parsed = parseFrame(frame);
+    expect(parsed.valid).toBe(true);
+    expect(parsed.controlCode).toBe(ControlCode.LOCK_CONTROL);
+    expect(parsed.payload).toEqual(new Uint8Array([0x08, 0x07, 0x10, 0x04]));
+    const msg = Lock.decode(parsed.payload);
+    expect(msg.type).toBe(Lock_Type.POWER_ON_OFF);
+    expect(msg.state).toBe(Lock_State.POWER_OFF);
   });
 });
 
