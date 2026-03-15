@@ -115,6 +115,7 @@ describe('findCar()', () => {
     const parsed = parseFrame(frame);
     expect(parsed.valid).toBe(true);
     expect(parsed.controlCode).toBe(ControlCode.FIND_CAR);
+    expect(parsed.payload).toEqual(new Uint8Array([0x18, 0x01]));
     const msg = FindCar.decode(parsed.payload);
     expect(msg.loudspeakerStatus).toBe(true);
     expect(msg.doubleflashStatus).toBe(false);
@@ -126,6 +127,7 @@ describe('findCar()', () => {
     const parsed = parseFrame(frame);
     expect(parsed.valid).toBe(true);
     expect(parsed.controlCode).toBe(ControlCode.FIND_CAR);
+    expect(parsed.payload).toEqual(new Uint8Array([0x10, 0x01]));
     const msg = FindCar.decode(parsed.payload);
     expect(msg.doubleflashStatus).toBe(true);
     expect(msg.loudspeakerStatus).toBe(false);
@@ -137,6 +139,7 @@ describe('findCar()', () => {
     const parsed = parseFrame(frame);
     expect(parsed.valid).toBe(true);
     expect(parsed.controlCode).toBe(ControlCode.FIND_CAR);
+    expect(parsed.payload).toEqual(new Uint8Array([0x08, 0x01]));
     const msg = FindCar.decode(parsed.payload);
     expect(msg.headlightStatus).toBe(true);
     expect(msg.loudspeakerStatus).toBe(false);
