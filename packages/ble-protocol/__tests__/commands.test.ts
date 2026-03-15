@@ -148,29 +148,35 @@ describe('findCar()', () => {
 });
 
 describe('setIndicators()', () => {
-  test("right: LightType.RIGHT_OPEN", () => {
+  test("right: LightType.RIGHT_OPEN encodes direction=1", () => {
     const frame = setIndicators('right');
     const parsed = parseFrame(frame);
     expect(parsed.valid).toBe(true);
     expect(parsed.controlCode).toBe(ControlCode.LIGHT_CONTROL);
+    // field 1 (direction), varint 1 → [0x08, 0x01]
+    expect(parsed.payload).toEqual(new Uint8Array([0x08, 0x01]));
     const msg = LightControl.decode(parsed.payload);
     expect(msg.direction).toBe(LightType.RIGHT_OPEN);
   });
 
-  test("left: LightType.LEFT_OPEN", () => {
+  test("left: LightType.LEFT_OPEN encodes direction=3", () => {
     const frame = setIndicators('left');
     const parsed = parseFrame(frame);
     expect(parsed.valid).toBe(true);
     expect(parsed.controlCode).toBe(ControlCode.LIGHT_CONTROL);
+    // field 1 (direction), varint 3 → [0x08, 0x03]
+    expect(parsed.payload).toEqual(new Uint8Array([0x08, 0x03]));
     const msg = LightControl.decode(parsed.payload);
     expect(msg.direction).toBe(LightType.LEFT_OPEN);
   });
 
-  test("off: LightType.NONE2", () => {
+  test("off: LightType.NONE2=0 encodes as empty payload (proto3 default omission)", () => {
     const frame = setIndicators('off');
     const parsed = parseFrame(frame);
     expect(parsed.valid).toBe(true);
     expect(parsed.controlCode).toBe(ControlCode.LIGHT_CONTROL);
+    // NONE2=0 is the proto3 default — the field is omitted on the wire, payload is empty.
+    expect(parsed.payload).toEqual(new Uint8Array([]));
     const msg = LightControl.decode(parsed.payload);
     expect(msg.direction).toBe(LightType.NONE2);
   });
