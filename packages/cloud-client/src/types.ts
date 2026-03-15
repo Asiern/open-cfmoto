@@ -497,6 +497,21 @@ export interface TotalRideMileResponse {
   [key: string]: unknown;
 }
 
+// ─── Remote Commands ─────────────────────────────────────────────────────────
+
+/**
+ * Response envelope for POST /vehicle/state/vehicle/kl15.
+ * `data` is a boolean (BaseResp<Boolean> in APK).
+ */
+export interface Kl15Response {
+  code: number | string;
+  msg?: string;
+  message?: string;
+  data: boolean;
+  success?: boolean;
+  [key: string]: unknown;
+}
+
 // ─── Electric Fence ──────────────────────────────────────────────────────────
 
 /**
