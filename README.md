@@ -1,5 +1,8 @@
 # open-cfmoto
 
+> [!WARNING]
+> This project has been heavily generated with AI assistance ("vibe coding"). Treat all code and documentation as experimental, review carefully, and validate against real hardware before relying on it.
+
 Open-source alternative to the CFMoto Ride Android app (`com.cfmoto.cfmotointernational`).
 
 Targets **CFMoto 450 series** (MT / SR / NK). MVP: BLE bike control + GPS trip recording.
@@ -132,6 +135,21 @@ const { units, speedLimit, lastConnectedDevice, setUnits, setSpeedLimit } = useS
 | Lock/unlock payload | Requires AES-256 encrypted payload from cloud — cannot be computed offline |
 | iOS not tested | BLE permission path is wired; hardware validation pending |
 | Keep-alive ACK code | `0xEC` vs `0xE7` TBD from live traffic — see hardware-validation.md §1 |
+
+## Privacy and T-Box Findings
+
+These points are based on decompilation findings plus captured cloud traffic in this repo.
+
+- 450MT uses a T-Box cellular path for cloud features; BLE is a separate local channel.
+- BLE auth requires cloud-provided `encryptInfo` (`encryptValue` + `key`) from vehicle APIs.
+- In observed virtual-vehicle mode (`vehicleId=-1`), `encryptInfo` is empty, so BLE auth material is not available.
+- Practical implication: unbound/unactivated flows may block T-Box-authenticated BLE commands.
+- Local-only mode can still be supported in the app UX, but with reduced capabilities where cloud keys are required.
+
+See:
+- [`docs/auth-protocol.md`](docs/auth-protocol.md)
+- [`docs/cloud-auth.md`](docs/cloud-auth.md)
+- [`docs/hardware-validation.md`](docs/hardware-validation.md)
 
 ---
 

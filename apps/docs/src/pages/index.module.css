@@ -17,6 +17,19 @@
   text-transform: uppercase;
 }
 
+.warning {
+  background: #fff4db;
+  border: 1px solid #f5d28a;
+  border-radius: 10px;
+  color: #5a4300;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0 0 1rem;
+  max-width: 860px;
+  padding: 0.75rem 0.9rem;
+}
+
 .subtitle {
   color: #2f3441;
   max-width: 760px;
@@ -57,4 +70,3 @@
   color: #2f3441;
   margin: 0;
 }
-

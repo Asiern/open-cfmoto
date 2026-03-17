@@ -25,8 +25,9 @@ const cards: Card[] = [
   },
   {
     title: 'Project Notes',
-    description: 'Audit notes, test coverage snapshots, hardware validation logs, and protocol guides.',
-    to: '/project/protocol',
+    description:
+      '450MT roadmap, privacy/connectivity notes, hardware validation checklist, and protocol guides.',
+    to: '/project/roadmap-450mt',
   },
 ];
 
@@ -39,6 +40,10 @@ function Home(): JSX.Element {
       <main className={styles.main}>
         <section className={styles.hero}>
           <p className={styles.kicker}>open-cfmoto documentation</p>
+          <p className={styles.warning}>
+            Warning: this project has been heavily generated with AI assistance ("vibe coding").
+            Treat implementation/docs as experimental and validate on real hardware.
+          </p>
           <h1>Build, verify, and document the protocol in one place.</h1>
           <p className={styles.subtitle}>
             This docs site consolidates reverse engineering evidence and implementation details for the
@@ -59,4 +64,3 @@ function Home(): JSX.Element {
 }
 
 export default Home;
-

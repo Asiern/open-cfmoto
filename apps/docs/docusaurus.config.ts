@@ -115,7 +115,7 @@ const config: Config = {
           items: [
             { label: 'Packages', to: '/packages' },
             { label: 'Reverse Engineering Findings', to: '/findings/ble-protocol' },
-            { label: 'Project Notes', to: '/project/protocol' },
+            { label: 'Project Notes', to: '/project/roadmap-450mt' },
           ],
         },
         {
