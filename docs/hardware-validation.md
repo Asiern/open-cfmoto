@@ -50,7 +50,7 @@ AES-256/ECB/PKCS7 encryption using the cloud-supplied key has not been validated
 - Send a lock command and confirm the bike responds with `LOCK_RESULT` (`0xE7`) `result=0`
 
 **Code to update:**
-- `apps/mobile/src/services/ble.service.ts` — wire auth into connect sequence
+- `packages/ble-protocol/src/cfmoto450.ts` / mobile integration — wire command/heartbeat ACK handlers to app state (`recordCommandAcked`, `recordHeartbeatAck`)
 
 ---
 

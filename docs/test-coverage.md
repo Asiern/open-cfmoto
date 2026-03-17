@@ -50,7 +50,7 @@ Run: `cd apps/mobile && pnpm test`
 | `src/stores/settings.store.ts` | `src/__tests__/settings-store.test.ts` | defaults, MMKV persistence, non-persisted `useMockBike` |
 | `src/providers/CFMotoProvider.tsx` | `src/__tests__/provider.test.tsx` | Android permission/init flow, iOS init path, cleanup destroy |
 | `src/hooks/index.ts` | `src/__tests__/hooks.test.ts` | connect helpers, connection guards, command send helpers, heartbeat derived state, ride summary persistence |
-| `src/services/ble.service.ts` + protocol integration | `src/__tests__/integration/ble-service.test.ts` | connect order, subscribe/write wiring, MTU request, disconnect cleanup, reconnect behavior, keepalive integration |
+| `src/services/ble.service.ts` + protocol integration | `src/__tests__/integration/ble-service.test.ts` | connect order, subscribe/write wiring, MTU request, disconnect cleanup, reconnect behavior, keepalive manager behavior (tested directly; protocol wiring pending) |
 
 ---
 

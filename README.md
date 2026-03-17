@@ -4,7 +4,7 @@ Open-source alternative to the CFMoto Ride Android app (`com.cfmoto.cfmotointern
 
 Targets **CFMoto 450 series** (MT / SR / NK). MVP: BLE bike control + GPS trip recording.
 
-> **Status:** BLE protocol layer complete and tested. Auth stub pending cloud API keys.
+> **Status:** BLE protocol layer complete and tested. Cloud-backed auth flow implemented.
 > Hardware validation in progress — see [`docs/hardware-validation.md`](docs/hardware-validation.md).
 
 ---
@@ -17,7 +17,7 @@ react-native-ble-plx
        └─ CFMoto450Protocol  (packages/ble-protocol/src/cfmoto450.ts)
             ├─ KeepAliveManager   2s heartbeat, 4s watchdog
             ├─ ResponseRouter     dispatches incoming frames by control code
-            └─ AuthFlow           AES-256/ECB challenge-response (stub)
+            └─ AuthFlow           AES-256/ECB challenge-response
   └─ BleService              (apps/mobile/src/services/ble.service.ts)
        └─ Zustand stores     bike.store, settings.store
             └─ React hooks   useCFMoto, useBikeCommands, useHeartbeat, useRideRecording
@@ -128,7 +128,7 @@ const { units, speedLimit, lastConnectedDevice, setUnits, setSpeedLimit } = useS
 | Limitation | Detail |
 |---|---|
 | No live telemetry over BLE | Speed/RPM/fuel come from cloud MQTT, not BLE |
-| Auth not implemented | `AuthFlow` throws `NotImplementedError` — needs cloud API key from `VehicleNowInfoResp.encryptInfo` |
+| Real-bike auth not yet hardware-validated | Auth flow is implemented, but end-to-end validation with real VIN-linked `encryptInfo` is still pending |
 | Lock/unlock payload | Requires AES-256 encrypted payload from cloud — cannot be computed offline |
 | iOS not tested | BLE permission path is wired; hardware validation pending |
 | Keep-alive ACK code | `0xEC` vs `0xE7` TBD from live traffic — see hardware-validation.md §1 |

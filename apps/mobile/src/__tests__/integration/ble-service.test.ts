@@ -6,9 +6,9 @@
  * Real: CFMoto450Protocol connection sequence, codec, commands, KeepAliveManager.
  *
  * CFMoto450Protocol status: connect() sequence is fully real (connect → 100ms delay
- * → subscribe → requestMtu → handshake stub). KeepAliveManager and ResponseRouter
- * are not yet wired into CFMoto450Protocol (Block 2 TODOs). Keepalive integration
- * is therefore tested via KeepAliveManager directly (Scenario 2).
+ * → subscribe → requestMtu → optional cloud-backed auth). KeepAliveManager and
+ * ACK-to-store wiring are not yet integrated in CFMoto450Protocol, so keepalive
+ * behavior is tested via KeepAliveManager directly (Scenario 2).
  * End-to-end validation against real hardware: see docs/hardware-validation.md.
  */
 
@@ -279,7 +279,7 @@ describe('Scenario 4 — disconnect and manual reconnect', () => {
 
 // ─── Scenario 2: KeepAliveManager watchdog + store integration ───────────────
 //
-// NOTE: KeepAliveManager is not yet wired into CFMoto450Protocol (Block 2 TODO).
+// NOTE: KeepAliveManager is not yet wired into CFMoto450Protocol.
 // These tests validate KeepAliveManager behaviour and show how it would integrate
 // with BleService.disconnect() on watchdog expiry.
 // Full end-to-end validation requires live BLE traffic. See docs/hardware-validation.md §2.
